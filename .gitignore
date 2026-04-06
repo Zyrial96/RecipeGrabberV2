@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Keystore
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+# Gradle wrapper jars
+gradle/wrapper/gradle-wrapper.jar
+gradle-8.7/
+gradle.zip
