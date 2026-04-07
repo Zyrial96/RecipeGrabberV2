@@ -1,0 +1,103 @@
+package com.recipegrabber.domain.llm
+
+data class LlmModel(
+    val id: String,
+    val name: String,
+    val description: String,
+    val provider: ProviderType,
+    val isVisionCapable: Boolean = false,
+    val contextWindow: Int = 4096
+)
+
+object LlmModels {
+    // OpenAI Models
+    val GPT_4O = LlmModel(
+        id = "gpt-4o",
+        name = "GPT-4o",
+        description = "Bestes Allround-Modell mit Vision",
+        provider = ProviderType.OPENAI,
+        isVisionCapable = true,
+        contextWindow = 128000
+    )
+    
+    val GPT_4O_MINI = LlmModel(
+        id = "gpt-4o-mini",
+        name = "GPT-4o Mini",
+        description = "Schnell und günstig",
+        provider = ProviderType.OPENAI,
+        isVisionCapable = true,
+        contextWindow = 128000
+    )
+    
+    // Google Models
+    val GEMINI_15_PRO = LlmModel(
+        id = "gemini-1.5-pro",
+        name = "Gemini 1.5 Pro",
+        description = "Großer Kontext",
+        provider = ProviderType.GEMINI,
+        isVisionCapable = true,
+        contextWindow = 2000000
+    )
+    
+    val GEMINI_15_FLASH = LlmModel(
+        id = "gemini-1.5-flash",
+        name = "Gemini 1.5 Flash",
+        description = "Performance-Sieger",
+        provider = ProviderType.GEMINI,
+        isVisionCapable = true,
+        contextWindow = 1000000
+    )
+    
+    // Claude Models
+    val CLAUDE_35_SONNET = LlmModel(
+        id = "claude-3-5-sonnet-20241022",
+        name = "Claude 3.5 Sonnet",
+        description = "Analytik-Master",
+        provider = ProviderType.CLAUDE,
+        isVisionCapable = true,
+        contextWindow = 200000
+    )
+    
+    val CLAUDE_3_HAIKU = LlmModel(
+        id = "claude-3-haiku-20240307",
+        name = "Claude 3 Haiku",
+        description = "Effizienz",
+        provider = ProviderType.CLAUDE,
+        isVisionCapable = true,
+        contextWindow = 200000
+    )
+    
+    // Kimi Models
+    val KIMI_K2_5 = LlmModel(
+        id = "kimi-k2.5",
+        name = "Kimi K2.5",
+        description = "Spezialist für lange Kontexte",
+        provider = ProviderType.KIMI,
+        isVisionCapable = true,
+        contextWindow = 256000
+    )
+    
+    val ALL_MODELS = listOf(
+        GPT_4O, GPT_4O_MINI,
+        GEMINI_15_PRO, GEMINI_15_FLASH,
+        CLAUDE_35_SONNET, CLAUDE_3_HAIKU,
+        KIMI_K2_5
+    )
+    
+    fun getModelsForProvider(provider: ProviderType): List<LlmModel> {
+        return ALL_MODELS.filter { it.provider == provider }
+    }
+    
+    fun getModelById(id: String): LlmModel? {
+        return ALL_MODELS.find { it.id == id }
+    }
+    
+    fun getDefaultModelForProvider(provider: ProviderType): LlmModel {
+        return when (provider) {
+            ProviderType.OPENAI -> GPT_4O
+            ProviderType.GEMINI -> GEMINI_15_PRO
+            ProviderType.CLAUDE -> CLAUDE_35_SONNET
+            ProviderType.KIMI -> KIMI_K2_5
+        }
+    }
+}

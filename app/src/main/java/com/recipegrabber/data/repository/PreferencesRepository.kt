@@ -22,14 +22,83 @@ class PreferencesRepository @Inject constructor(
 ) {
 
     private object PreferencesKeys {
+        // Onboarding
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        
+        // LLM Provider
         val LLM_PROVIDER = stringPreferencesKey("llm_provider")
+        val LLM_MODEL = stringPreferencesKey("llm_model")
+        
+        // API Keys
         val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val CLAUDE_API_KEY = stringPreferencesKey("claude_api_key")
+        val KIMI_API_KEY = stringPreferencesKey("kimi_api_key")
+        val APIFY_API_KEY = stringPreferencesKey("apify_api_key")
+        
+        // Google Drive
         val DRIVE_SYNC_ENABLED = booleanPreferencesKey("drive_sync_enabled")
         val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
+        
+        // App Settings
         val CLIPBOARD_MONITOR_ENABLED = booleanPreferencesKey("clipboard_monitor_enabled")
         val DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
         val AUTO_EXTRACT_RECIPES = booleanPreferencesKey("auto_extract_recipes")
+    }
+    
+    // Onboarding Status
+    val onboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.ONBOARDING_COMPLETED] ?: false
+    }
+    
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.ONBOARDING_COMPLETED] = completed
+        }
+    }
+    
+    // LLM Model
+    val llmModel: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.LLM_MODEL] ?: ""
+    }
+    
+    suspend fun setLlmModel(model: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LLM_MODEL] = model
+        }
+    }
+    
+    // Claude
+    val claudeApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.CLAUDE_API_KEY] ?: ""
+    }
+    
+    suspend fun setClaudeApiKey(apiKey: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CLAUDE_API_KEY] = apiKey
+        }
+    }
+    
+    // Kimi
+    val kimiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.KIMI_API_KEY] ?: ""
+    }
+    
+    suspend fun setKimiApiKey(apiKey: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.KIMI_API_KEY] = apiKey
+        }
+    }
+    
+    // Apify
+    val apifyApiKey: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.APIFY_API_KEY] ?: ""
+    }
+    
+    suspend fun setApifyApiKey(apiKey: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.APIFY_API_KEY] = apiKey
+        }
     }
 
     val llmProviderType: Flow<ProviderType> = context.dataStore.data.map { preferences ->
