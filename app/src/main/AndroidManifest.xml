@@ -22,10 +22,23 @@
         <activity
             android:name=".presentation.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.RecipeGrabberV2">
+            android:theme="@style/Theme.RecipeGrabberV2"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- Share Intent Filter -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Broadcast Receiver for Clipboard -->
+            <intent-filter>
+                <action android:name="com.recipegrabber.RECIPE_URL_DETECTED" />
             </intent-filter>
         </activity>
 

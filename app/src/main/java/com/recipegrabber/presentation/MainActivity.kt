@@ -1,6 +1,9 @@
 package com.recipegrabber.presentation
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,7 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.recipegrabber.data.repository.PreferencesRepository
 import com.recipegrabber.presentation.ui.screens.RecipeDetailScreen
+import com.recipegrabber.presentation.ui.screens.RecipeExtractionBottomSheet
 import com.recipegrabber.presentation.ui.screens.RecipeListScreen
 import com.recipegrabber.presentation.ui.screens.SettingsScreen
 import com.recipegrabber.presentation.ui.screens.onboarding.OnboardingScreen
@@ -31,28 +39,50 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
+    private var pendingVideoUrl: String? = null
+    private val clipboardReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED) {
+                val url = intent.getStringExtra(ClipboardMonitorService.EXTRA_VIDEO_URL)
+                url?.let {
+                    pendingVideoUrl = it
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Handle share intent
+        handleShareIntent(intent)
+
         setContent {
             val darkModeEnabled by preferencesRepository.darkModeEnabled.collectAsState(initial = true)
             val onboardingCompleted by preferencesRepository.onboardingCompleted.collectAsState(initial = false)
+            
+            var showExtractionSheet by remember { mutableStateOf(false) }
+            var extractionUrl by remember { mutableStateOf("") }
+
+            // Show extraction sheet when URL is detected
+            pendingVideoUrl?.let { url ->
+                extractionUrl = url
+                showExtractionSheet = true
+                pendingVideoUrl = null
+            }
 
             RecipeGrabberTheme(darkTheme = darkModeEnabled) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = rememberNavController()
 
                     if (!onboardingCompleted) {
-                        // Show Onboarding
                         OnboardingScreen(
                             onComplete = {
-                                // Onboarding completed - restart to load main app
                                 recreate()
                             }
                         )
                     } else {
-                        // Main App Navigation
                         NavHost(
                             navController = navController,
                             startDestination = "recipe_list"
@@ -85,23 +115,93 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         }
+
+                        // Extraction Bottom Sheet
+                        if (showExtractionSheet && extractionUrl.isNotBlank()) {
+                            RecipeExtractionBottomSheet(
+                                videoUrl = extractionUrl,
+                                onDismiss = {
+                                    showExtractionSheet = false
+                                    extractionUrl = ""
+                                },
+                                onRecipeSaved = { recipeId ->
+                                    showExtractionSheet = false
+                                    extractionUrl = ""
+                                    navController.navigate("recipe_detail/$recipeId")
+                                },
+                                onNavigateToSettings = {
+                                    showExtractionSheet = false
+                                    extractionUrl = ""
+                                    navController.navigate("settings")
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    private fun handleShareIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            sharedText?.let { text ->
+                if (isValidVideoUrl(text)) {
+                    pendingVideoUrl = text
+                }
+            }
+        }
+    }
+
+    private fun isValidVideoUrl(url: String): Boolean {
+        val videoPatterns = listOf(
+            "youtube.com/watch",
+            "youtu.be/",
+            "tiktok.com/",
+            "instagram.com/",
+            "facebook.com/",
+            "twitter.com/",
+            "x.com/",
+            "vimeo.com/",
+            "dailymotion.com/"
+        )
+        return videoPatterns.any { url.contains(it, ignoreCase = true) }
+    }
+
     override fun onStart() {
         super.onStart()
-        // Only start clipboard monitor if onboarding is completed
         val onboardingCompleted = preferencesRepository.onboardingCompleted.value
         if (onboardingCompleted) {
             startClipboardMonitor()
+            registerClipboardReceiver()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterClipboardReceiver()
     }
 
     private fun startClipboardMonitor() {
         val serviceIntent = Intent(this, ClipboardMonitorService::class.java)
         startForegroundService(serviceIntent)
+    }
+
+    private fun registerClipboardReceiver() {
+        val filter = IntentFilter(ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED)
+        registerReceiver(clipboardReceiver, filter, RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun unregisterClipboardReceiver() {
+        try {
+            unregisterReceiver(clipboardReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver was not registered
+        }
     }
 }

@@ -3,7 +3,9 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -14,7 +16,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class OpenAiProvider @Inject constructor() : LlmProvider {
+class OpenAiProvider @Inject constructor(
+    private val preferencesRepository: PreferencesRepository
+) : LlmProvider {
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.openai.com/")
@@ -25,15 +29,18 @@ class OpenAiProvider @Inject constructor() : LlmProvider {
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = getApiKey()
+            val apiKey = preferencesRepository.openAiApiKey.first()
             if (apiKey.isBlank()) {
                 return@withContext Result.failure(Exception("OpenAI API key not configured"))
             }
 
+            val modelId = preferencesRepository.llmModel.first()
+            val model = if (modelId.isNotBlank()) modelId else LlmModels.GPT_4O.id
+
             val response = api.extractRecipe(
                 authorization = "Bearer $apiKey",
                 request = ExtractionRequest(
-                    model = "gpt-4o",
+                    model = model,
                     messages = listOf(
                         Message(
                             role = "user",
@@ -63,16 +70,14 @@ class OpenAiProvider @Inject constructor() : LlmProvider {
                 ?: return@withContext Result.failure(Exception("No response from OpenAI"))
 
             val cleanJson = content.replace("```json", "").replace("```", "").trim()
-            val recipe = parseRecipeFromJson(cleanJson)
+            val recipe = parseRecipeFromJson(cleanJson, videoUrl)
             Result.success(recipe)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private fun getApiKey(): String = ""
-
-    private fun parseRecipeFromJson(json: String): Recipe {
+    private fun parseRecipeFromJson(json: String, sourceUrl: String): Recipe {
         val regex = """\{.*\}""".toRegex(RegexOption.DOT_MATCHES_ALL)
         val match = regex.find(json)?.value ?: json
 
@@ -86,10 +91,13 @@ class OpenAiProvider @Inject constructor() : LlmProvider {
                 servings = extracted.servings ?: 4,
                 prepTimeMinutes = extracted.prepTimeMinutes ?: 0,
                 cookTimeMinutes = extracted.cookTimeMinutes ?: 0,
-                sourceUrl = extracted.sourceUrl ?: "",
+                sourceUrl = sourceUrl,
                 sourceType = extracted.sourceType ?: "VIDEO",
                 thumbnailUrl = null,
                 createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+                isFavorite = false,
+                isSynced = false,
                 ingredients = extracted.ingredients?.mapIndexed { index, ing ->
                     Ingredient(
                         id = index.toLong(),
@@ -120,10 +128,13 @@ class OpenAiProvider @Inject constructor() : LlmProvider {
                 servings = 4,
                 prepTimeMinutes = 0,
                 cookTimeMinutes = 0,
-                sourceUrl = json,
+                sourceUrl = sourceUrl,
                 sourceType = "VIDEO",
                 thumbnailUrl = null,
                 createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+                isFavorite = false,
+                isSynced = false,
                 ingredients = emptyList(),
                 steps = emptyList()
             )
