@@ -1,7 +1,11 @@
 package com.recipegrabber.domain.llm
 
+import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
+import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -12,7 +16,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class KimiProvider @Inject constructor() : LlmProvider {
+class KimiProvider @Inject constructor(
+    private val preferencesRepository: PreferencesRepository
+) : LlmProvider {
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.moonshot.ai/")
@@ -23,10 +29,22 @@ class KimiProvider @Inject constructor() : LlmProvider {
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            val apiKey = preferencesRepository.kimiApiKey.first()
+            if (apiKey.isBlank()) {
+                return@withContext Result.failure(Exception("Kimi API key not configured"))
+            }
+
+            val modelId = preferencesRepository.llmModel.first()
+            val model = if (modelId.isNotBlank() && modelId.startsWith("kimi")) {
+                modelId
+            } else {
+                "kimi-k2.5"
+            }
+
             val response = api.extractRecipe(
-                authorization = "",
+                authorization = "Bearer $apiKey",
                 request = KimiRequest(
-                    model = "kimi-k2.5",
+                    model = model,
                     messages = listOf(
                         KimiMessage(
                             role = "user",
@@ -80,7 +98,7 @@ class KimiProvider @Inject constructor() : LlmProvider {
                 isFavorite = false,
                 isSynced = false,
                 ingredients = extracted.ingredients?.mapIndexed { index, ing ->
-                    com.recipegrabber.data.local.entity.Ingredient(
+                    Ingredient(
                         id = index.toLong(),
                         recipeId = 0,
                         name = ing?.name ?: "",
@@ -91,7 +109,7 @@ class KimiProvider @Inject constructor() : LlmProvider {
                     )
                 } ?: emptyList(),
                 steps = extracted.steps?.mapIndexed { index, step ->
-                    com.recipegrabber.data.local.entity.Step(
+                    Step(
                         id = index.toLong(),
                         recipeId = 0,
                         order = step?.order ?: (index + 1),

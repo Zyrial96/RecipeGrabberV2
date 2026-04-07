@@ -1,7 +1,11 @@
 package com.recipegrabber.domain.llm
 
+import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
+import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -12,7 +16,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ClaudeProvider @Inject constructor() : LlmProvider {
+class ClaudeProvider @Inject constructor(
+    private val preferencesRepository: PreferencesRepository
+) : LlmProvider {
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.anthropic.com/")
@@ -23,11 +29,23 @@ class ClaudeProvider @Inject constructor() : LlmProvider {
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            val apiKey = preferencesRepository.claudeApiKey.first()
+            if (apiKey.isBlank()) {
+                return@withContext Result.failure(Exception("Claude API key not configured"))
+            }
+
+            val modelId = preferencesRepository.llmModel.first()
+            val model = if (modelId.isNotBlank() && modelId.startsWith("claude")) {
+                modelId
+            } else {
+                "claude-3-5-sonnet-20241022"
+            }
+
             val response = api.extractRecipe(
-                authorization = "",
+                authorization = "Bearer $apiKey",
                 anthropicVersion = "2023-06-01",
                 request = ClaudeRequest(
-                    model = "claude-3-5-sonnet-20241022",
+                    model = model,
                     maxTokens = 4096,
                     messages = listOf(
                         ClaudeMessage(
@@ -82,7 +100,7 @@ class ClaudeProvider @Inject constructor() : LlmProvider {
                 isFavorite = false,
                 isSynced = false,
                 ingredients = extracted.ingredients?.mapIndexed { index, ing ->
-                    com.recipegrabber.data.local.entity.Ingredient(
+                    Ingredient(
                         id = index.toLong(),
                         recipeId = 0,
                         name = ing?.name ?: "",
@@ -93,7 +111,7 @@ class ClaudeProvider @Inject constructor() : LlmProvider {
                     )
                 } ?: emptyList(),
                 steps = extracted.steps?.mapIndexed { index, step ->
-                    com.recipegrabber.data.local.entity.Step(
+                    Step(
                         id = index.toLong(),
                         recipeId = 0,
                         order = step?.order ?: (index + 1),
@@ -128,7 +146,7 @@ class ClaudeProvider @Inject constructor() : LlmProvider {
 interface ClaudeApi {
     @POST("v1/messages")
     suspend fun extractRecipe(
-        @Header("Authorization") authorization: String,
+        @Header("x-api-key") authorization: String,
         @Header("anthropic-version") anthropicVersion: String,
         @Body request: ClaudeRequest
     ): ClaudeResponse

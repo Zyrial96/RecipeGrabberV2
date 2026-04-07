@@ -3,30 +3,36 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.Header
-import retrofit2.http.POST
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class GeminiProvider @Inject constructor() : LlmProvider {
+class GeminiProvider @Inject constructor(
+    private val preferencesRepository: PreferencesRepository
+) : LlmProvider {
 
     private val client = OkHttpClient()
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = getApiKey()
+            val apiKey = preferencesRepository.geminiApiKey.first()
             if (apiKey.isBlank()) {
                 return@withContext Result.failure(Exception("Gemini API key not configured"))
+            }
+
+            val modelId = preferencesRepository.llmModel.first()
+            val model = if (modelId.isNotBlank() && modelId.startsWith("gemini")) {
+                modelId
+            } else {
+                "gemini-1.5-flash"
             }
 
             val prompt = """Extract the recipe from this video: $videoUrl
@@ -47,39 +53,41 @@ class GeminiProvider @Inject constructor() : LlmProvider {
                 |  "sourceType": "VIDEO"
                 |}""".trimMargin()
 
-            val requestBody = GsonConverterFactory.create().let {
-                val json = """
-                    {
-                        "contents": [{
-                            "parts": [{"text": "$prompt"}]
-                        }],
-                        "generationConfig": {
-                            "responseMimeType": "application/json"
-                        }
+            val jsonBody = """
+                {
+                    "contents": [{
+                        "parts": [{"text": ${gson.toJson(prompt)}}]
+                    }],
+                    "generationConfig": {
+                        "responseMimeType": "application/json"
                     }
-                """.trimIndent()
-                okhttp3.MediaType.Companion.toMediaType("application/json") to json
-            }
+                }
+            """.trimIndent()
+
+            val mediaType = "application/json".toMediaType()
+            val requestBody = jsonBody.toRequestBody(mediaType)
 
             val request = Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey")
-                .post(requestBody.second.toRequestBody(requestBody.first))
+                .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey")
+                .post(requestBody)
                 .build()
 
             val response = client.newCall(request).execute()
             val responseBody = response.body?.string()
                 ?: return@withContext Result.failure(Exception("No response from Gemini"))
 
-            val parsed = parseGeminiResponse(responseBody)
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Gemini API error: ${response.code}"))
+            }
+
+            val parsed = parseGeminiResponse(responseBody, videoUrl)
             Result.success(parsed)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private fun getApiKey(): String = ""
-
-    private fun parseGeminiResponse(response: String): Recipe {
+    private fun parseGeminiResponse(response: String, sourceUrl: String): Recipe {
         return try {
             val gson = com.google.gson.Gson()
             val geminiResponse = gson.fromJson(response, GeminiResponse::class.java)
@@ -95,10 +103,13 @@ class GeminiProvider @Inject constructor() : LlmProvider {
                 servings = extracted.servings ?: 4,
                 prepTimeMinutes = extracted.prepTimeMinutes ?: 0,
                 cookTimeMinutes = extracted.cookTimeMinutes ?: 0,
-                sourceUrl = extracted.sourceUrl ?: "",
+                sourceUrl = sourceUrl,
                 sourceType = extracted.sourceType ?: "VIDEO",
                 thumbnailUrl = null,
                 createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+                isFavorite = false,
+                isSynced = false,
                 ingredients = extracted.ingredients?.mapIndexed { index, ing ->
                     Ingredient(
                         id = index.toLong(),
@@ -129,14 +140,21 @@ class GeminiProvider @Inject constructor() : LlmProvider {
                 servings = 4,
                 prepTimeMinutes = 0,
                 cookTimeMinutes = 0,
-                sourceUrl = "",
+                sourceUrl = sourceUrl,
                 sourceType = "VIDEO",
                 thumbnailUrl = null,
                 createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+                isFavorite = false,
+                isSynced = false,
                 ingredients = emptyList(),
                 steps = emptyList()
             )
         }
+    }
+
+    companion object {
+        private val gson = com.google.gson.Gson()
     }
 }
 
