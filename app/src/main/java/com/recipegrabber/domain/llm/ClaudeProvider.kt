@@ -3,6 +3,7 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 
 @Singleton
 class ClaudeProvider @Inject constructor(
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val logger: AppLogger
 ) : LlmProvider {
 
     private val client = okhttp3.OkHttpClient.Builder()
@@ -36,8 +38,10 @@ class ClaudeProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            logger.i("Claude", "Starting extraction for URL: $videoUrl")
             val apiKey = preferencesRepository.claudeApiKey.first()
             if (apiKey.isBlank()) {
+                logger.e("Claude", "API key not configured")
                 return@withContext Result.failure(Exception("Claude API key not configured"))
             }
 
@@ -47,6 +51,7 @@ class ClaudeProvider @Inject constructor(
             } else {
                 "claude-3-5-sonnet-20241022"
             }
+            logger.i("Claude", "Using model: $model")
 
             val response = api.extractRecipe(
                 apiKey = apiKey,
@@ -80,10 +85,17 @@ class ClaudeProvider @Inject constructor(
             )
 
             val content = response.content.firstOrNull()?.text
-                ?: return@withContext Result.failure(Exception("No response from Claude"))
+                if (content.isNullOrBlank()) {
+                    logger.e("Claude", "Empty response from API")
+                    return@withContext Result.failure(Exception("No response from Claude"))
+                }
+                logger.d("Claude", "Raw response: ${content.take(500)}")
 
-            Result.success(parseClaudeResponse(content, videoUrl))
+            val recipe = parseClaudeResponse(content, videoUrl)
+            logger.i("Claude", "Successfully extracted recipe: ${recipe.title}")
+            Result.success(recipe)
         } catch (e: Exception) {
+            logger.e("Claude", "Extraction failed", e)
             Result.failure(e)
         }
     }

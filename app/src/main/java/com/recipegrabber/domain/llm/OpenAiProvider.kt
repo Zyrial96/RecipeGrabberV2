@@ -3,6 +3,7 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 
 @Singleton
 class OpenAiProvider @Inject constructor(
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val logger: AppLogger
 ) : LlmProvider {
 
     private val client = okhttp3.OkHttpClient.Builder()
@@ -36,13 +38,16 @@ class OpenAiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            logger.i("OpenAI", "Starting extraction for URL: $videoUrl")
             val apiKey = preferencesRepository.openAiApiKey.first()
             if (apiKey.isBlank()) {
+                logger.e("OpenAI", "API key not configured")
                 return@withContext Result.failure(Exception("OpenAI API key not configured"))
             }
 
             val modelId = preferencesRepository.llmModel.first()
             val model = if (modelId.isNotBlank()) modelId else LlmModels.GPT_4O.id
+            logger.i("OpenAI", "Using model: $model")
 
             val response = api.extractRecipe(
                 authorization = "Bearer $apiKey",
@@ -74,12 +79,18 @@ class OpenAiProvider @Inject constructor(
             )
 
             val content = response.choices.firstOrNull()?.message?.content
-                ?: return@withContext Result.failure(Exception("No response from OpenAI"))
+                if (content.isNullOrBlank()) {
+                    logger.e("OpenAI", "Empty response from API")
+                    return@withContext Result.failure(Exception("No response from OpenAI"))
+                }
+                logger.d("OpenAI", "Raw response: ${content.take(500)}")
 
             val cleanJson = content.replace("```json", "").replace("```", "").trim()
             val recipe = parseRecipeFromJson(cleanJson, videoUrl)
+            logger.i("OpenAI", "Successfully extracted recipe: ${recipe.title}")
             Result.success(recipe)
         } catch (e: Exception) {
+            logger.e("OpenAI", "Extraction failed", e)
             Result.failure(e)
         }
     }

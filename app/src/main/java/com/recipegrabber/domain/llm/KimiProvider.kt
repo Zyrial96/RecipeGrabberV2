@@ -3,6 +3,7 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 
 @Singleton
 class KimiProvider @Inject constructor(
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val logger: AppLogger
 ) : LlmProvider {
 
     private val client = okhttp3.OkHttpClient.Builder()
@@ -36,8 +38,10 @@ class KimiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            logger.i("Kimi", "Starting extraction for URL: $videoUrl")
             val apiKey = preferencesRepository.kimiApiKey.first()
             if (apiKey.isBlank()) {
+                logger.e("Kimi", "API key not configured")
                 return@withContext Result.failure(Exception("Kimi API key not configured"))
             }
 
@@ -47,6 +51,7 @@ class KimiProvider @Inject constructor(
             } else {
                 "moonshot-v1-128k"
             }
+            logger.i("Kimi", "Using model: $model")
 
             val response = api.extractRecipe(
                 authorization = "Bearer $apiKey",
@@ -77,11 +82,18 @@ class KimiProvider @Inject constructor(
                 )
             )
 
-            val content = response.choices.firstOrNull()?.message?.content
-                ?: return@withContext Result.failure(Exception("No response from Kimi"))
+val content = response.choices.firstOrNull()?.message?.content
+                if (content.isNullOrBlank()) {
+                    logger.e("Kimi", "Empty response from API")
+                    return@withContext Result.failure(Exception("No response from Kimi"))
+                }
+                logger.d("Kimi", "Raw response: ${content.take(500)}")
 
-            Result.success(parseKimiResponse(content, videoUrl))
+            val recipe = parseKimiResponse(content, videoUrl)
+            logger.i("Kimi", "Successfully extracted recipe: ${recipe.title}")
+            Result.success(recipe)
         } catch (e: Exception) {
+            logger.e("Kimi", "Extraction failed", e)
             Result.failure(e)
         }
     }

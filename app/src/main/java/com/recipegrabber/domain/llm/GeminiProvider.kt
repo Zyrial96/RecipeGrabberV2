@@ -3,6 +3,7 @@ package com.recipegrabber.domain.llm
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 
 @Singleton
 class GeminiProvider @Inject constructor(
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val logger: AppLogger
 ) : LlmProvider {
 
     private val client = OkHttpClient.Builder()
@@ -27,8 +29,10 @@ class GeminiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
+            logger.i("Gemini", "Starting extraction for URL: $videoUrl")
             val apiKey = preferencesRepository.geminiApiKey.first()
             if (apiKey.isBlank()) {
+                logger.e("Gemini", "API key not configured")
                 return@withContext Result.failure(Exception("Gemini API key not configured"))
             }
 
@@ -38,6 +42,7 @@ class GeminiProvider @Inject constructor(
             } else {
                 "gemini-2.5-flash"
             }
+            logger.i("Gemini", "Using model: $model, URL: https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
 
             val prompt = """Extract the recipe from this video: $videoUrl
                 |Return a JSON object with the following structure:
@@ -81,12 +86,20 @@ class GeminiProvider @Inject constructor(
                 ?: return@withContext Result.failure(Exception("No response from Gemini"))
 
             if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Gemini API error: ${response.code}"))
+                val errorBody = response.body?.string() ?: "No error body"
+                logger.e("Gemini", "API error ${response.code}: $errorBody")
+                return@withContext Result.failure(Exception("Gemini API error: ${response.code} - $errorBody"))
             }
 
+            val responseBody = response.body?.string()
+                ?: return@withContext Result.failure(Exception("No response from Gemini"))
+            logger.d("Gemini", "Response length: ${responseBody.length} chars")
+
             val parsed = parseGeminiResponse(responseBody, videoUrl)
+            logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
             Result.success(parsed)
         } catch (e: Exception) {
+            logger.e("Gemini", "Extraction failed", e)
             Result.failure(e)
         }
     }
