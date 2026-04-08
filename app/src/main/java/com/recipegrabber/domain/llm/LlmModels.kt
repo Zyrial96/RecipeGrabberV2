@@ -31,18 +31,18 @@ object LlmModels {
     
     // Google Models
     val GEMINI_15_PRO = LlmModel(
-        id = "gemini-1.5-pro",
-        name = "Gemini 1.5 Pro",
-        description = "Großer Kontext",
+        id = "gemini-2.0-flash",
+        name = "Gemini 2.0 Flash",
+        description = "Schnell und zuverlässig",
         provider = ProviderType.GEMINI,
         isVisionCapable = true,
-        contextWindow = 2000000
+        contextWindow = 1000000
     )
     
     val GEMINI_15_FLASH = LlmModel(
-        id = "gemini-1.5-flash",
-        name = "Gemini 1.5 Flash",
-        description = "Performance-Sieger",
+        id = "gemini-2.0-flash",
+        name = "Gemini 2.0 Flash",
+        description = "Schnell und kostengünstig",
         provider = ProviderType.GEMINI,
         isVisionCapable = true,
         contextWindow = 1000000
