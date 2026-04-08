@@ -3,5 +3,8 @@
     <style name="Theme.RecipeGrabberV2" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:colorPrimary">#E65100</item>
+        <item name="android:colorPrimaryDark">#BF360C</item>
+        <item name="android:colorAccent">#FF9800</item>
     </style>
 </resources>
