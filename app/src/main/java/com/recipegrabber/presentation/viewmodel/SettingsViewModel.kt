@@ -3,6 +3,7 @@ package com.recipegrabber.presentation.viewmodel
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.GoogleDriveService
 import com.recipegrabber.data.repository.PreferencesRepository
 import com.recipegrabber.domain.llm.LlmModels
@@ -37,7 +38,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
-    private val googleDriveService: GoogleDriveService
+    private val googleDriveService: GoogleDriveService,
+    private val logger: AppLogger
 ) : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)

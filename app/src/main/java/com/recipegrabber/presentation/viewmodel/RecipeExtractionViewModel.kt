@@ -3,6 +3,7 @@ package com.recipegrabber.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.local.entity.Recipe
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.domain.usecase.ExtractRecipeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,13 +30,15 @@ enum class ExtractionStep {
 
 @HiltViewModel
 class RecipeExtractionViewModel @Inject constructor(
-    private val extractRecipeUseCase: ExtractRecipeUseCase
+    private val extractRecipeUseCase: ExtractRecipeUseCase,
+    private val logger: AppLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExtractionUiState())
     val uiState: StateFlow<ExtractionUiState> = _uiState.asStateFlow()
 
     fun startExtraction(videoUrl: String) {
+        logger.i("ExtractionVM", "Starting extraction for: $videoUrl")
         viewModelScope.launch {
             _uiState.value = ExtractionUiState(
                 isLoading = true,
@@ -47,6 +50,7 @@ class RecipeExtractionViewModel @Inject constructor(
 
             when (result) {
                 is ExtractRecipeUseCase.ExtractionResult.Success -> {
+                    logger.i("ExtractionVM", "Extraction succeeded: ${result.recipe.title}")
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,
@@ -55,6 +59,7 @@ class RecipeExtractionViewModel @Inject constructor(
                     )
                 }
                 is ExtractRecipeUseCase.ExtractionResult.NoApiKey -> {
+                    logger.w("ExtractionVM", "No API key for: ${result.provider}")
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,
@@ -63,6 +68,7 @@ class RecipeExtractionViewModel @Inject constructor(
                     )
                 }
                 is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed -> {
+                    logger.w("ExtractionVM", "Scraping failed, retrying direct extraction")
                     // Try direct extraction without scraping
                     _uiState.value = ExtractionUiState(
                         isLoading = true,
@@ -91,6 +97,7 @@ class RecipeExtractionViewModel @Inject constructor(
                     }
                 }
                 is ExtractRecipeUseCase.ExtractionResult.Error -> {
+                    logger.e("ExtractionVM", "Extraction error: ${result.message}")
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,
