@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.ContentPaste
@@ -66,6 +67,7 @@ import com.recipegrabber.presentation.viewmodel.SettingsViewModel
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToLogs: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -127,6 +129,15 @@ fun SettingsScreen(
             // Appearance Section
             SettingsSection(title = "Appearance", icon = Icons.Default.DarkMode) {
                 AppearanceSettings(uiState, viewModel)
+            }
+
+            SettingsSection(title = "Debug Logs", icon = Icons.Default.BugReport) {
+                OutlinedButton(
+                    onClick = onNavigateToLogs,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View & Export Logs")
+                }
             }
         }
     }

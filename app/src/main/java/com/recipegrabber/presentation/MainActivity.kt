@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.recipegrabber.data.repository.PreferencesRepository
+import com.recipegrabber.presentation.ui.screens.LogViewerScreen
 import com.recipegrabber.presentation.ui.screens.RecipeDetailScreen
 import com.recipegrabber.presentation.ui.screens.RecipeExtractionBottomSheet
 import com.recipegrabber.presentation.ui.screens.RecipeListScreen
@@ -114,6 +115,13 @@ class MainActivity : ComponentActivity() {
 
                             composable("settings") {
                                 SettingsScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToLogs = { navController.navigate("logs") }
+                                )
+                            }
+
+                            composable("logs") {
+                                LogViewerScreen(
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
