@@ -82,8 +82,6 @@ class GeminiProvider @Inject constructor(
                 .build()
 
             val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
-                ?: return@withContext Result.failure(Exception("No response from Gemini"))
 
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "No error body"

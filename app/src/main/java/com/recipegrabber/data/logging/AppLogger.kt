@@ -2,7 +2,7 @@ package com.recipegrabber.data.logging
 
 import android.content.Context
 import android.content.Intent
-import android.os.Process
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -28,7 +28,7 @@ object LogLevel {
 
 @Singleton
 class AppLogger @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val logDir by lazy { File(context.filesDir, "logs").also { it.mkdirs() } }
     private val currentLogFile by lazy { File(logDir, "app.log") }
