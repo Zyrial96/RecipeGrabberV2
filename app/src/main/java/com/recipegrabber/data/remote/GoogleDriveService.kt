@@ -15,6 +15,7 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.recipegrabber.data.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 
 @Singleton
 class GoogleDriveService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val logger: AppLogger
 ) {
 
     private val _isSignedIn = MutableStateFlow(false)
@@ -63,6 +65,7 @@ class GoogleDriveService @Inject constructor(
         return try {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
+            logger.i("Drive", "Sign-in successful for: ${account?.email}")
             
             account?.email?.let { email ->
                 _isSignedIn.value = true
@@ -71,6 +74,7 @@ class GoogleDriveService @Inject constructor(
                 Result.success(email)
             } ?: Result.failure(Exception("No email returned"))
         } catch (e: ApiException) {
+            logger.e("Drive", "Sign-in failed with status: ${e.statusCode}", e)
             Result.failure(Exception("Sign-in failed: ${e.statusCode}"))
         }
     }
@@ -78,6 +82,7 @@ class GoogleDriveService @Inject constructor(
     suspend fun signOut(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val client = googleSignInClient ?: return@withContext Result.failure(Exception("Not initialized"))
+            logger.i("Drive", "Signing out")
             client.signOut().await()
             _isSignedIn.value = false
             _userEmail.value = null

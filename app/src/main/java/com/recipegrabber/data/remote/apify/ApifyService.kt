@@ -1,5 +1,6 @@
 package com.recipegrabber.data.remote.apify
 
+import com.recipegrabber.data.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
@@ -14,7 +15,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ApifyService @Inject constructor() {
+class ApifyService @Inject constructor(
+    private val logger: AppLogger
+) {
 
     private val client = okhttp3.OkHttpClient.Builder()
         .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
@@ -32,6 +35,7 @@ class ApifyService @Inject constructor() {
 
     suspend fun scrapeInstagramReel(url: String, apiKey: String): Result<ScrapedVideoData> = withContext(Dispatchers.IO) {
         try {
+            logger.i("Apify", "Starting Instagram scrape for: $url")
             val runResponse = api.startActorRun(
                 authorization = "Bearer $apiKey",
                 actorId = "apify/instagram-scraper",
@@ -42,7 +46,11 @@ class ApifyService @Inject constructor() {
             )
 
             val runId = runResponse.data?.id
-                ?: return@withContext Result.failure(Exception("Failed to start Instagram scraper"))
+                if (runId == null) {
+                    logger.e("Apify", "Failed to start Instagram scraper - no run ID returned")
+                    return@withContext Result.failure(Exception("Failed to start Instagram scraper"))
+                }
+                logger.d("Apify", "Instagram scraper run started: $runId")
 
             var attempts = 0
             var datasetId: String? = null
@@ -88,12 +96,14 @@ class ApifyService @Inject constructor() {
                 )
             )
         } catch (e: Exception) {
+            logger.e("Apify", "Instagram scrape failed", e)
             Result.failure(e)
         }
     }
 
     suspend fun scrapeTikTokVideo(url: String, apiKey: String): Result<ScrapedVideoData> = withContext(Dispatchers.IO) {
         try {
+            logger.i("Apify", "Starting TikTok scrape for: $url")
             val runResponse = api.startActorRun(
                 authorization = "Bearer $apiKey",
                 actorId = "clockworks/tiktok-scraper",
@@ -104,7 +114,11 @@ class ApifyService @Inject constructor() {
             )
 
             val runId = runResponse.data?.id
-                ?: return@withContext Result.failure(Exception("Failed to start TikTok scraper"))
+                if (runId == null) {
+                    logger.e("Apify", "Failed to start TikTok scraper - no run ID returned")
+                    return@withContext Result.failure(Exception("Failed to start TikTok scraper"))
+                }
+                logger.d("Apify", "TikTok scraper run started: $runId")
 
             var attempts = 0
             var datasetId: String? = null
@@ -150,6 +164,7 @@ class ApifyService @Inject constructor() {
                 )
             )
         } catch (e: Exception) {
+            logger.e("Apify", "TikTok scrape failed", e)
             Result.failure(e)
         }
     }
