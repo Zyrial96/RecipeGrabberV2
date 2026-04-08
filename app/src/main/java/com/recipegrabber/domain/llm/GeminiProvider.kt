@@ -36,7 +36,7 @@ class GeminiProvider @Inject constructor(
             val model = if (modelId.isNotBlank() && modelId.startsWith("gemini")) {
                 modelId
             } else {
-                "gemini-2.0-flash"
+                "gemini-2.5-flash"
             }
 
             val prompt = """Extract the recipe from this video: $videoUrl
