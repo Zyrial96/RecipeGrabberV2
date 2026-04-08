@@ -56,23 +56,26 @@ class OpenAiProvider @Inject constructor(
                     messages = listOf(
                         Message(
                             role = "user",
-                            content = """Extract the recipe from this video: $videoUrl
-                            Return a JSON object with the following structure:
-                            {
-                              "title": "Recipe Name",
-                              "description": "Brief description",
-                              "servings": 4,
-                              "prepTimeMinutes": 15,
-                              "cookTimeMinutes": 30,
-                              "ingredients": [
-                                {"name": "ingredient name", "amount": 1.0, "unit": "cup", "notes": "optional notes"}
-                              ],
-                              "steps": [
-                                {"order": 1, "instruction": "Step instruction", "duration": null}
-                              ],
-                              "sourceUrl": "$videoUrl",
-                              "sourceType": "VIDEO"
-                            }"""
+                            content = """Extrahiere das Rezept aus diesem Video: $videoUrl
+
+WICHTIG: Antworte ausschließlich auf Deutsch! Verwende deutsche Maßeinheiten (g, kg, ml, l, EL, TL, Prise statt cups, oz, lbs, tbsp, tsp). Temperaturen in °C statt °F.
+
+Gib ein JSON-Objekt mit folgender Struktur zurück:
+{
+  "title": "Rezeptname auf Deutsch",
+  "description": "Kurze Beschreibung auf Deutsch",
+  "servings": 4,
+  "prepTimeMinutes": 15,
+  "cookTimeMinutes": 30,
+  "ingredients": [
+    {"name": "Zutat auf Deutsch", "amount": 200, "unit": "g", "notes": "optional"}
+  ],
+  "steps": [
+    {"order": 1, "instruction": "Schrittbeschreibung auf Deutsch", "duration": null}
+  ],
+  "sourceUrl": "$videoUrl",
+  "sourceType": "VIDEO"
+}"""
                         )
                     )
                 )
