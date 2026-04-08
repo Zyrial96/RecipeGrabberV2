@@ -20,8 +20,15 @@ class KimiProvider @Inject constructor(
     private val preferencesRepository: PreferencesRepository
 ) : LlmProvider {
 
+    private val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.moonshot.ai/")
+        .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
@@ -35,10 +42,10 @@ class KimiProvider @Inject constructor(
             }
 
             val modelId = preferencesRepository.llmModel.first()
-            val model = if (modelId.isNotBlank() && modelId.startsWith("kimi")) {
+            val model = if (modelId.isNotBlank() && modelId.startsWith("moonshot")) {
                 modelId
             } else {
-                "kimi-k2.5"
+                "moonshot-v1-128k"
             }
 
             val response = api.extractRecipe(

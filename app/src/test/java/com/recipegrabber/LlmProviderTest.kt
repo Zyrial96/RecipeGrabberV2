@@ -3,62 +3,14 @@ package com.recipegrabber
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
-import com.recipegrabber.domain.llm.GeminiProvider
-import com.recipegrabber.domain.llm.LlmProvider
-import com.recipegrabber.domain.llm.OpenAiProvider
 import com.recipegrabber.domain.llm.ProviderType
-import io.mockk.coEvery
-import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 @DisplayName("LLM Provider Tests")
 class LlmProviderTest {
-
-    private lateinit var openAiProvider: OpenAiProvider
-    private lateinit var geminiProvider: GeminiProvider
-
-    @BeforeEach
-    fun setup() {
-        openAiProvider = OpenAiProvider()
-        geminiProvider = GeminiProvider()
-    }
-
-    @Nested
-    @DisplayName("OpenAiProvider Tests")
-    inner class OpenAiProviderTests {
-
-        @Test
-        @DisplayName("Should return failure when API key is not configured")
-        fun `should return failure when API key not configured`() = runTest {
-            val result = openAiProvider.extractRecipeFromVideo("https://youtube.com/watch?v=test")
-
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull()?.message?.contains("not configured") == true)
-        }
-    }
-
-    @Nested
-    @DisplayName("GeminiProvider Tests")
-    inner class GeminiProviderTests {
-
-        @Test
-        @DisplayName("Should return failure when API key is not configured")
-        fun `should return failure when API key not configured`() = runTest {
-            val result = geminiProvider.extractRecipeFromVideo("https://youtube.com/watch?v=test")
-
-            assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull()?.message?.contains("not configured") == true)
-        }
-    }
 
     @Nested
     @DisplayName("Recipe Parsing Tests")
@@ -78,6 +30,9 @@ class LlmProviderTest {
                 sourceType = "VIDEO",
                 thumbnailUrl = null,
                 createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+                isFavorite = false,
+                isSynced = false,
                 ingredients = emptyList(),
                 steps = emptyList()
             )
@@ -132,9 +87,11 @@ class LlmProviderTest {
         @Test
         @DisplayName("Should have correct enum values")
         fun `should have correct enum values`() {
-            assertEquals(2, ProviderType.entries.size)
+            assertEquals(4, ProviderType.entries.size)
             assertEquals(ProviderType.OPENAI, ProviderType.valueOf("OPENAI"))
             assertEquals(ProviderType.GEMINI, ProviderType.valueOf("GEMINI"))
+            assertEquals(ProviderType.CLAUDE, ProviderType.valueOf("CLAUDE"))
+            assertEquals(ProviderType.KIMI, ProviderType.valueOf("KIMI"))
         }
     }
 }

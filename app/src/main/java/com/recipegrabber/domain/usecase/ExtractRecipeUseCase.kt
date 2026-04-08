@@ -33,8 +33,12 @@ class ExtractRecipeUseCase @Inject constructor(
         // Try Apify first if available
         val apifyKey = preferencesRepository.apifyApiKey.first()
         
-        val scrapedData = if (apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
-            scrapeWithApify(videoUrl, apifyKey)
+        val scrapedData: ScrapedVideoData? = if (apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+            val result = scrapeWithApify(videoUrl, apifyKey)
+            if (result == null && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+                return ExtractionResult.ScrapingFailed("Scraping failed for $platform content. The video will be analyzed directly by the LLM.")
+            }
+            result
         } else {
             null
         }

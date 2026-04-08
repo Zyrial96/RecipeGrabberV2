@@ -20,8 +20,15 @@ class ClaudeProvider @Inject constructor(
     private val preferencesRepository: PreferencesRepository
 ) : LlmProvider {
 
+    private val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.anthropic.com/")
+        .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
@@ -42,7 +49,7 @@ class ClaudeProvider @Inject constructor(
             }
 
             val response = api.extractRecipe(
-                authorization = "Bearer $apiKey",
+                apiKey = apiKey,
                 anthropicVersion = "2023-06-01",
                 request = ClaudeRequest(
                     model = model,
@@ -146,7 +153,7 @@ class ClaudeProvider @Inject constructor(
 interface ClaudeApi {
     @POST("v1/messages")
     suspend fun extractRecipe(
-        @Header("x-api-key") authorization: String,
+        @Header("x-api-key") apiKey: String,
         @Header("anthropic-version") anthropicVersion: String,
         @Body request: ClaudeRequest
     ): ClaudeResponse

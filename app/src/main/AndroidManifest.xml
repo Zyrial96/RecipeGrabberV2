@@ -35,11 +35,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
-            
-            <!-- Broadcast Receiver for Clipboard -->
-            <intent-filter>
-                <action android:name="com.recipegrabber.RECIPE_URL_DETECTED" />
-            </intent-filter>
         </activity>
 
         <service

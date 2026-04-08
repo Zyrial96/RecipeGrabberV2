@@ -1,5 +1,6 @@
 package com.recipegrabber.presentation.viewmodel
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.remote.GoogleDriveService
@@ -153,12 +154,18 @@ class SettingsViewModel @Inject constructor(
     }
 
     // Google Drive
-    fun setDriveSyncEnabled(enabled: Boolean) {
+    fun getSignInIntent(): Intent {
+        return googleDriveService.getSignInIntent()
+    }
+
+    fun handleSignInResult(data: Intent?) {
         viewModelScope.launch {
-            if (enabled) {
-                val result = googleDriveService.signIn()
+            _message.value = null
+            try {
+                val result = googleDriveService.handleSignInResult(data)
                 result.fold(
-                    onSuccess = {
+                    onSuccess = { email ->
+                        preferencesRepository.setGoogleAccountEmail(email)
                         preferencesRepository.setDriveSyncEnabled(true)
                         _message.value = "Google Drive sync enabled"
                     },
@@ -166,9 +173,20 @@ class SettingsViewModel @Inject constructor(
                         _message.value = "Failed to sign in to Google"
                     }
                 )
+            } catch (e: Exception) {
+                _message.value = "Failed to sign in to Google"
+            }
+        }
+    }
+
+    fun setDriveSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            if (enabled) {
+                _message.value = "Please sign in using the Google Drive settings"
             } else {
                 googleDriveService.signOut()
                 preferencesRepository.setDriveSyncEnabled(false)
+                preferencesRepository.setGoogleAccountEmail("")
                 _message.value = "Google Drive sync disabled"
             }
         }

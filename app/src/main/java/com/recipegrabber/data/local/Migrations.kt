@@ -1,11 +1,10 @@
 package com.recipegrabber.data.local
 
-import androidx.room.AddColumn
-import androidx.room.AlterTable
-import androidx.room.DatabaseMigration
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
-val MIGRATION_1_2 = object : DatabaseMigration {
-    override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("""
             CREATE TABLE IF NOT EXISTS `recipes_backup` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -53,6 +52,7 @@ val MIGRATION_1_2 = object : DatabaseMigration {
 
         database.execSQL("DROP TABLE ingredients")
         database.execSQL("ALTER TABLE ingredients_backup RENAME TO ingredients")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_ingredients_recipeId` ON `ingredients` (`recipeId`)")
 
         database.execSQL("""
             CREATE TABLE IF NOT EXISTS `steps_backup` (
@@ -74,11 +74,12 @@ val MIGRATION_1_2 = object : DatabaseMigration {
 
         database.execSQL("DROP TABLE steps")
         database.execSQL("ALTER TABLE steps_backup RENAME TO steps")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_steps_recipeId` ON `steps` (`recipeId`)")
     }
 }
 
-val MIGRATION_2_3 = object : DatabaseMigration {
-    override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("ALTER TABLE recipes ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
         database.execSQL("ALTER TABLE recipes ADD COLUMN isSynced INTEGER NOT NULL DEFAULT 0")
     }

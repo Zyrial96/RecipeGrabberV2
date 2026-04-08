@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,7 +32,10 @@ import com.recipegrabber.presentation.ui.screens.onboarding.OnboardingScreen
 import com.recipegrabber.presentation.ui.theme.RecipeGrabberTheme
 import com.recipegrabber.service.ClipboardMonitorService
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -39,13 +43,13 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
-    private var pendingVideoUrl: String? = null
+    private val pendingVideoUrl = AtomicReference<String?>(null)
     private val clipboardReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED) {
                 val url = intent.getStringExtra(ClipboardMonitorService.EXTRA_VIDEO_URL)
                 url?.let {
-                    pendingVideoUrl = it
+                    pendingVideoUrl.set(it)
                 }
             }
         }
@@ -65,11 +69,10 @@ class MainActivity : ComponentActivity() {
             var showExtractionSheet by remember { mutableStateOf(false) }
             var extractionUrl by remember { mutableStateOf("") }
 
-            // Show extraction sheet when URL is detected
-            pendingVideoUrl?.let { url ->
+            val url = pendingVideoUrl.getAndSet(null)
+            if (url != null) {
                 extractionUrl = url
                 showExtractionSheet = true
-                pendingVideoUrl = null
             }
 
             RecipeGrabberTheme(darkTheme = darkModeEnabled) {
@@ -175,10 +178,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        val onboardingCompleted = preferencesRepository.onboardingCompleted.value
-        if (onboardingCompleted) {
-            startClipboardMonitor()
-            registerClipboardReceiver()
+        lifecycleScope.launch(Dispatchers.Main) {
+            val onboardingCompleted = preferencesRepository.onboardingCompleted.first()
+            if (onboardingCompleted) {
+                startClipboardMonitor()
+                registerClipboardReceiver()
+            }
         }
     }
 

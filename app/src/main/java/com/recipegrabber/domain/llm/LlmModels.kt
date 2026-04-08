@@ -69,12 +69,12 @@ object LlmModels {
     
     // Kimi Models
     val KIMI_K2_5 = LlmModel(
-        id = "kimi-k2.5",
-        name = "Kimi K2.5",
+        id = "moonshot-v1-128k",
+        name = "Moonshot V1 128K",
         description = "Spezialist für lange Kontexte",
         provider = ProviderType.KIMI,
-        isVisionCapable = true,
-        contextWindow = 256000
+        isVisionCapable = false,
+        contextWindow = 128000
     )
     
     val ALL_MODELS = listOf(

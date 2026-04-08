@@ -16,8 +16,15 @@ import javax.inject.Singleton
 @Singleton
 class ApifyService @Inject constructor() {
 
+    private val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.apify.com/v2/")
+        .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
