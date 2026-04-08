@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.domain.usecase.ExtractRecipeUseCase
+import com.recipegrabber.domain.usecase.ProgressUpdate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,9 @@ data class ExtractionUiState(
     val videoUrl: String = "",
     val extractedRecipe: Recipe? = null,
     val error: String? = null,
-    val step: ExtractionStep = ExtractionStep.IDLE
+    val step: ExtractionStep = ExtractionStep.IDLE,
+    val progressMessage: String = "",
+    val progressPercent: Float = 0f
 )
 
 enum class ExtractionStep {
@@ -43,10 +46,31 @@ class RecipeExtractionViewModel @Inject constructor(
             _uiState.value = ExtractionUiState(
                 isLoading = true,
                 videoUrl = videoUrl,
-                step = ExtractionStep.SCRAPING
+                step = ExtractionStep.SCRAPING,
+                progressMessage = "Erkenne Plattform...",
+                progressPercent = 0.05f
             )
 
+            // Collect progress updates
+            val progressJob = launch {
+                extractRecipeUseCase.progress.collect { update ->
+                    val step = when (update.step) {
+                        "detecting", "scraping" -> ExtractionStep.SCRAPING
+                        "connecting", "analyzing", "parsing" -> ExtractionStep.EXTRACTING
+                        "saving", "done" -> ExtractionStep.EXTRACTING
+                        else -> ExtractionStep.EXTRACTING
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        step = step,
+                        progressMessage = update.message,
+                        progressPercent = update.progress
+                    )
+                }
+            }
+
             val result = extractRecipeUseCase(videoUrl)
+
+            progressJob.cancel()
 
             when (result) {
                 is ExtractRecipeUseCase.ExtractionResult.Success -> {
@@ -55,7 +79,9 @@ class RecipeExtractionViewModel @Inject constructor(
                         isLoading = false,
                         videoUrl = videoUrl,
                         extractedRecipe = result.recipe,
-                        step = ExtractionStep.SUCCESS
+                        step = ExtractionStep.SUCCESS,
+                        progressMessage = "Rezept extrahiert!",
+                        progressPercent = 1f
                     )
                 }
                 is ExtractRecipeUseCase.ExtractionResult.NoApiKey -> {
@@ -63,17 +89,18 @@ class RecipeExtractionViewModel @Inject constructor(
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,
-                        error = "Please configure your ${result.provider} API key in Settings",
+                        error = "Bitte konfiguriere deinen ${result.provider} API-Key in den Einstellungen",
                         step = ExtractionStep.ERROR
                     )
                 }
                 is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed -> {
                     logger.w("ExtractionVM", "Scraping failed, retrying direct extraction")
-                    // Try direct extraction without scraping
                     _uiState.value = ExtractionUiState(
                         isLoading = true,
                         videoUrl = videoUrl,
-                        step = ExtractionStep.EXTRACTING
+                        step = ExtractionStep.EXTRACTING,
+                        progressMessage = "Video-Scraping fehlgeschlagen, versuche direkte KI-Analyse...",
+                        progressPercent = 0.4f
                     )
                     
                     val retryResult = extractRecipeUseCase(videoUrl)
@@ -83,7 +110,9 @@ class RecipeExtractionViewModel @Inject constructor(
                                 isLoading = false,
                                 videoUrl = videoUrl,
                                 extractedRecipe = retryResult.recipe,
-                                step = ExtractionStep.SUCCESS
+                                step = ExtractionStep.SUCCESS,
+                                progressMessage = "Rezept extrahiert!",
+                                progressPercent = 1f
                             )
                         }
                         else -> {

@@ -137,7 +137,7 @@ fun RecipeExtractionBottomSheet(
                     ExtractionStep.IDLE,
                     ExtractionStep.SCRAPING,
                     ExtractionStep.EXTRACTING -> {
-                        LoadingState(step)
+                        LoadingState(step, uiState.progressMessage, uiState.progressPercent)
                     }
                     ExtractionStep.SUCCESS -> {
                         uiState.extractedRecipe?.let { recipe ->
@@ -166,7 +166,7 @@ fun RecipeExtractionBottomSheet(
 }
 
 @Composable
-fun LoadingState(step: ExtractionStep) {
+fun LoadingState(step: ExtractionStep, progressMessage: String = "", progressPercent: Float = 0f) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
@@ -179,9 +179,9 @@ fun LoadingState(step: ExtractionStep) {
         Spacer(modifier = Modifier.height(24.dp))
 
         val (title, subtitle) = when (step) {
-            ExtractionStep.SCRAPING -> "Scraping Video" to "Downloading video from platform..."
-            ExtractionStep.EXTRACTING -> "Extracting Recipe" to "AI is analyzing the video..."
-            else -> "Processing" to "Please wait..."
+            ExtractionStep.SCRAPING -> "Video wird geladen" to "Video wird von der Plattform heruntergeladen..."
+            ExtractionStep.EXTRACTING -> "Rezept wird erstellt" to "KI analysiert das Video..."
+            else -> "Wird verarbeitet" to "Bitte warten..."
         }
 
         Text(
@@ -191,18 +191,40 @@ fun LoadingState(step: ExtractionStep) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        if (progressMessage.isNotBlank()) {
+            Text(
+                text = progressMessage,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (progressPercent > 0f) {
+            LinearProgressIndicator(
+                progress = { progressPercent },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "${(progressPercent * 100).toInt()}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 

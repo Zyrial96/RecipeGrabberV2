@@ -7,9 +7,18 @@ import com.recipegrabber.data.remote.apify.ScrapedVideoData
 import com.recipegrabber.data.repository.PreferencesRepository
 import com.recipegrabber.domain.llm.LlmProviderFactory
 import com.recipegrabber.domain.llm.ProviderType
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class ProgressUpdate(
+    val step: String,
+    val message: String,
+    val progress: Float
+)
 
 @Singleton
 class ExtractRecipeUseCase @Inject constructor(
@@ -27,14 +36,20 @@ class ExtractRecipeUseCase @Inject constructor(
         data class NoApiKey(val provider: String) : ExtractionResult()
     }
 
-    suspend operator fun invoke(videoUrl: String): ExtractionResult {
+    private val _progress = MutableStateFlow(ProgressUpdate("idle", "Preparing...", 0f))
+    val progress: StateFlow<ProgressUpdate> = _progress.asStateFlow()
+
+    suspend fun invokeWithProgress(videoUrl: String): ExtractionResult {
+        _progress.value = ProgressUpdate("detecting", "Erkenne Plattform...", 0.05f)
         logger.i("ExtractRecipe", "Starting extraction for: $videoUrl")
         val platform = detectPlatform(videoUrl)
+        val platformName = platform.name.lowercase().replaceFirstChar { it.uppercase() }
         logger.d("ExtractRecipe", "Detected platform: $platform")
         
         val apifyKey = preferencesRepository.apifyApiKey.first()
         
         val scrapedData: ScrapedVideoData? = if (apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+            _progress.value = ProgressUpdate("scraping", "Video wird von $platformName heruntergeladen...", 0.15f)
             logger.i("ExtractRecipe", "Attempting Apify scrape for $platform")
             val result = scrapeWithApify(videoUrl, apifyKey)
             if (result == null && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
@@ -48,6 +63,14 @@ class ExtractRecipeUseCase @Inject constructor(
         }
 
         val providerType = preferencesRepository.llmProviderType.first()
+        val providerName = when (providerType) {
+            ProviderType.OPENAI -> "OpenAI"
+            ProviderType.GEMINI -> "Gemini"
+            ProviderType.CLAUDE -> "Claude"
+            ProviderType.KIMI -> "Kimi"
+        }
+        _progress.value = ProgressUpdate("connecting", "Verbinde mit $providerName...", 0.3f)
+
         val provider = llmProviderFactory.create(providerType)
         logger.i("ExtractRecipe", "Using LLM provider: $providerType")
 
@@ -63,11 +86,15 @@ class ExtractRecipeUseCase @Inject constructor(
             return ExtractionResult.NoApiKey(providerType.name)
         }
 
+        _progress.value = ProgressUpdate("analyzing", "$providerName analysiert das Video...", 0.5f)
+
         return try {
             val contextUrl = scrapedData?.videoUrl ?: videoUrl
             val description = scrapedData?.description ?: ""
 
             val result = provider.extractRecipeFromVideo(contextUrl)
+            
+            _progress.value = ProgressUpdate("parsing", "Rezept wird erstellt...", 0.8f)
             
             result.fold(
                 onSuccess = { extractedRecipe ->
@@ -77,8 +104,10 @@ class ExtractRecipeUseCase @Inject constructor(
                         extractedRecipe
                     }
                     
+                    _progress.value = ProgressUpdate("saving", "Rezept wird gespeichert...", 0.9f)
                     val savedId = saveRecipeUseCase(enhancedRecipe)
                     logger.i("ExtractRecipe", "Recipe saved with ID: $savedId")
+                    _progress.value = ProgressUpdate("done", "Fertig!", 1.0f)
                     ExtractionResult.Success(enhancedRecipe.copy(id = savedId))
                 },
                 onFailure = { error ->
@@ -91,6 +120,8 @@ class ExtractRecipeUseCase @Inject constructor(
             ExtractionResult.Error(e.message ?: "Unknown error")
         }
     }
+
+    suspend operator fun invoke(videoUrl: String): ExtractionResult = invokeWithProgress(videoUrl)
 
     private suspend fun scrapeWithApify(url: String, apiKey: String): ScrapedVideoData? {
         return try {
