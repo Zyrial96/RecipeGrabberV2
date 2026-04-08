@@ -1,6 +1,7 @@
 package com.recipegrabber.domain.llm
 
 import com.recipegrabber.data.repository.PreferencesRepository
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 

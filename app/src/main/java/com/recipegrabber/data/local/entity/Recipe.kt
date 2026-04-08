@@ -1,7 +1,6 @@
 package com.recipegrabber.data.local.entity
 
 import androidx.room.Entity
-import androidx.room.Ignore
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "recipes")
@@ -19,9 +18,10 @@ data class Recipe(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val isFavorite: Boolean = false,
-    val isSynced: Boolean = false,
-    @Ignore
-    val ingredients: List<Ingredient> = emptyList(),
-    @Ignore
-    val steps: List<Step> = emptyList()
-)
+    val isSynced: Boolean = false
+) {
+    @Transient
+    var ingredients: List<Ingredient> = emptyList()
+    @Transient
+    var steps: List<Step> = emptyList()
+}

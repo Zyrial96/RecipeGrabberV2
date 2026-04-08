@@ -20,9 +20,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FoodBank
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.ServicingOutlined
+import androidx.compose.material.icons.filled.FoodBank
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -219,7 +220,7 @@ fun RecipeHeader(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.ServicingOutlined,
+                        Icons.Default.FoodBank,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp)
                     )

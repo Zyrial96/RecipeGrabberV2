@@ -19,7 +19,7 @@ class LlmProviderTest {
         @Test
         @DisplayName("Should create valid Recipe entity")
         fun `should create valid Recipe entity`() {
-            val recipe = Recipe(
+val recipe = Recipe(
                 id = 1,
                 title = "Test Recipe",
                 description = "A test recipe",
@@ -32,10 +32,10 @@ class LlmProviderTest {
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
                 isFavorite = false,
-                isSynced = false,
-                ingredients = emptyList(),
-                steps = emptyList()
+                isSynced = false
             )
+            recipe.ingredients = emptyList()
+            recipe.steps = emptyList()
 
             assertEquals("Test Recipe", recipe.title)
             assertEquals(4, recipe.servings)

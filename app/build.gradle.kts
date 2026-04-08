@@ -54,6 +54,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 }
@@ -95,10 +97,17 @@ dependencies {
 
     implementation(libs.google.identity.services)
 
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.4.1")
+    implementation("com.google.oauth-client:google-oauth-client-jetty:1.36.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20240521-2.0.0")
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+
     implementation(libs.coil.compose)
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     testImplementation(libs.junit)
     testImplementation(libs.junit.params)

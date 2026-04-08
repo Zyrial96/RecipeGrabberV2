@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -75,18 +75,16 @@ class GoogleDriveService @Inject constructor(
         }
     }
 
-    suspend fun signOut(): Result<Unit> = withContext(Dispatchers.Main) {
-        return@withContext suspendCancellableCoroutine { cont ->
-            try {
-                googleSignInClient?.signOut()?.addOnCompleteListener {
-                    _isSignedIn.value = false
-                    _userEmail.value = null
-                    driveService = null
-                    if (cont.isActive) cont.resume(Result.success(Unit))
-                }
-            } catch (e: Exception) {
-                if (cont.isActive) cont.resume(Result.failure(e))
-            }
+    suspend fun signOut(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val client = googleSignInClient ?: return@withContext Result.failure(Exception("Not initialized"))
+            client.signOut().await()
+            _isSignedIn.value = false
+            _userEmail.value = null
+            driveService = null
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

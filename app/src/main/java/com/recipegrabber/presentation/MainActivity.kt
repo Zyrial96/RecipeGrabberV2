@@ -17,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +33,7 @@ import com.recipegrabber.service.ClipboardMonitorService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.concurrent.atomic.AtomicReference
 
@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleShareIntent(intent)
     }
@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
             sharedText?.let { text ->
                 if (isValidVideoUrl(text)) {
-                    pendingVideoUrl = text
+                    pendingVideoUrl.set(text)
                 }
             }
         }
@@ -178,7 +178,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        lifecycleScope.launch(Dispatchers.Main) {
+        lifecycleScope.launch {
             val onboardingCompleted = preferencesRepository.onboardingCompleted.first()
             if (onboardingCompleted) {
                 startClipboardMonitor()

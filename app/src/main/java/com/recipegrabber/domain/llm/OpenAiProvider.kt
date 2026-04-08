@@ -104,8 +104,9 @@ class OpenAiProvider @Inject constructor(
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
                 isFavorite = false,
-                isSynced = false,
-                ingredients = extracted.ingredients?.mapIndexed { index, ing ->
+                isSynced = false
+            ).also { recipe ->
+                recipe.ingredients = extracted.ingredients?.mapIndexed { index, ing ->
                     Ingredient(
                         id = index.toLong(),
                         recipeId = 0,
@@ -115,8 +116,8 @@ class OpenAiProvider @Inject constructor(
                         notes = ing?.notes ?: "",
                         orderIndex = index
                     )
-                } ?: emptyList(),
-                steps = extracted.steps?.mapIndexed { index, step ->
+                } ?: emptyList()
+                recipe.steps = extracted.steps?.mapIndexed { index, step ->
                     Step(
                         id = index.toLong(),
                         recipeId = 0,
@@ -126,7 +127,7 @@ class OpenAiProvider @Inject constructor(
                         imageUrl = null
                     )
                 } ?: emptyList()
-            )
+            }
         } catch (e: Exception) {
             Recipe(
                 id = 0,
@@ -141,9 +142,7 @@ class OpenAiProvider @Inject constructor(
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
                 isFavorite = false,
-                isSynced = false,
-                ingredients = emptyList(),
-                steps = emptyList()
+                isSynced = false
             )
         }
     }

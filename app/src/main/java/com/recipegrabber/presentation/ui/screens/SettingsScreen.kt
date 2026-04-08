@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.recipegrabber.domain.llm.LlmModels
 import com.recipegrabber.domain.llm.ProviderType
+import com.recipegrabber.presentation.viewmodel.SettingsUiState
 import com.recipegrabber.presentation.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

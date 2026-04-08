@@ -125,7 +125,7 @@ fun LlmSelectionStep(
                         Text(model.name, style = MaterialTheme.typography.titleSmall)
                         Text(model.description, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Kontext: ${model.contextWindow.toLocaleString()} Tokens",
+                            "Kontext: ${model.contextWindow} Tokens",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

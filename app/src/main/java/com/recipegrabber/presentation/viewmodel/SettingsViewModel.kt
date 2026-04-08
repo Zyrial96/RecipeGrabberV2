@@ -11,33 +11,24 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    // LLM Provider
     val llmProvider: ProviderType = ProviderType.OPENAI,
     val llmModel: String = LlmModels.GPT_4O.id,
-    
-    // API Keys
     val openAiApiKey: String = "",
     val geminiApiKey: String = "",
     val claudeApiKey: String = "",
     val kimiApiKey: String = "",
     val apifyApiKey: String = "",
-    
-    // Google Drive
     val driveSyncEnabled: Boolean = false,
     val googleAccountEmail: String = "",
-    
-    // App Settings
     val clipboardMonitorEnabled: Boolean = true,
     val darkModeEnabled: Boolean = true,
     val autoExtractRecipes: Boolean = true,
-    
-    // UI State
     val isLoading: Boolean = false,
     val message: String? = null,
     val showApifyHelp: Boolean = false
@@ -51,50 +42,58 @@ class SettingsViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<String?>(null)
     private val _showApifyHelp = MutableStateFlow(false)
+    private val _uiState = MutableStateFlow(SettingsUiState(isLoading = true))
 
-    val uiState: StateFlow<SettingsUiState> = combine(
-        preferencesRepository.llmProviderType,
-        preferencesRepository.llmModel,
-        preferencesRepository.openAiApiKey,
-        preferencesRepository.geminiApiKey,
-        preferencesRepository.claudeApiKey,
-        preferencesRepository.kimiApiKey,
-        preferencesRepository.apifyApiKey,
-        preferencesRepository.driveSyncEnabled,
-        preferencesRepository.googleAccountEmail,
-        preferencesRepository.clipboardMonitorEnabled,
-        preferencesRepository.darkModeEnabled,
-        preferencesRepository.autoExtractRecipes,
-        _showApifyHelp
-    ) { values ->
-        @Suppress("UNCHECKED_CAST")
-        SettingsUiState(
-            llmProvider = values[0] as ProviderType,
-            llmModel = values[1] as String,
-            openAiApiKey = values[2] as String,
-            geminiApiKey = values[3] as String,
-            claudeApiKey = values[4] as String,
-            kimiApiKey = values[5] as String,
-            apifyApiKey = values[6] as String,
-            driveSyncEnabled = values[7] as Boolean,
-            googleAccountEmail = values[8] as String,
-            clipboardMonitorEnabled = values[9] as Boolean,
-            darkModeEnabled = values[10] as Boolean,
-            autoExtractRecipes = values[11] as Boolean,
-            showApifyHelp = values[12] as Boolean,
-            isLoading = false
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SettingsUiState(isLoading = true)
-    )
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    // LLM Provider
+    init {
+        viewModelScope.launch {
+            preferencesRepository.llmProviderType.collect { _uiState.value = _uiState.value.copy(llmProvider = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.llmModel.collect { _uiState.value = _uiState.value.copy(llmModel = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.openAiApiKey.collect { _uiState.value = _uiState.value.copy(openAiApiKey = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.geminiApiKey.collect { _uiState.value = _uiState.value.copy(geminiApiKey = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.claudeApiKey.collect { _uiState.value = _uiState.value.copy(claudeApiKey = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.kimiApiKey.collect { _uiState.value = _uiState.value.copy(kimiApiKey = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.apifyApiKey.collect { _uiState.value = _uiState.value.copy(apifyApiKey = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.driveSyncEnabled.collect { _uiState.value = _uiState.value.copy(driveSyncEnabled = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.googleAccountEmail.collect { _uiState.value = _uiState.value.copy(googleAccountEmail = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.clipboardMonitorEnabled.collect { _uiState.value = _uiState.value.copy(clipboardMonitorEnabled = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.darkModeEnabled.collect { _uiState.value = _uiState.value.copy(darkModeEnabled = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.autoExtractRecipes.collect { _uiState.value = _uiState.value.copy(autoExtractRecipes = it) }
+        }
+        viewModelScope.launch {
+            _showApifyHelp.collect { _uiState.value = _uiState.value.copy(showApifyHelp = it) }
+        }
+        viewModelScope.launch {
+            _message.collect { _uiState.value = _uiState.value.copy(message = it) }
+        }
+    }
+
     fun setLlmProvider(type: ProviderType) {
         viewModelScope.launch {
             preferencesRepository.setLlmProvider(type)
-            // Set default model for new provider
             val defaultModel = LlmModels.getDefaultModelForProvider(type).id
             preferencesRepository.setLlmModel(defaultModel)
             _message.value = "Provider changed to ${type.name}"
@@ -108,7 +107,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // API Keys
     fun setOpenAiApiKey(apiKey: String) {
         viewModelScope.launch {
             preferencesRepository.setOpenAiApiKey(apiKey)
@@ -144,7 +142,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // Apify Help
     fun showApifyHelp() {
         _showApifyHelp.value = true
     }
@@ -153,7 +150,6 @@ class SettingsViewModel @Inject constructor(
         _showApifyHelp.value = false
     }
 
-    // Google Drive
     fun getSignInIntent(): Intent {
         return googleDriveService.getSignInIntent()
     }
@@ -201,7 +197,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // App Settings
     fun setClipboardMonitorEnabled(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setClipboardMonitorEnabled(enabled)
