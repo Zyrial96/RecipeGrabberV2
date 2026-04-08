@@ -1,10 +1,10 @@
 package com.recipegrabber.domain.usecase
 
 import com.recipegrabber.data.local.entity.Recipe
+import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.apify.ApifyService
 import com.recipegrabber.data.remote.apify.ScrapedVideoData
 import com.recipegrabber.data.repository.PreferencesRepository
-import com.recipegrabber.domain.llm.LlmProvider
 import com.recipegrabber.domain.llm.LlmProviderFactory
 import com.recipegrabber.domain.llm.ProviderType
 import kotlinx.coroutines.flow.first
@@ -16,7 +16,8 @@ class ExtractRecipeUseCase @Inject constructor(
     private val apifyService: ApifyService,
     private val llmProviderFactory: LlmProviderFactory,
     private val preferencesRepository: PreferencesRepository,
-    private val saveRecipeUseCase: SaveRecipeUseCase
+    private val saveRecipeUseCase: SaveRecipeUseCase,
+    private val logger: AppLogger
 ) {
 
     sealed class ExtractionResult {
@@ -27,27 +28,29 @@ class ExtractRecipeUseCase @Inject constructor(
     }
 
     suspend operator fun invoke(videoUrl: String): ExtractionResult {
-        // Check which platform
+        logger.i("ExtractRecipe", "Starting extraction for: $videoUrl")
         val platform = detectPlatform(videoUrl)
+        logger.d("ExtractRecipe", "Detected platform: $platform")
         
-        // Try Apify first if available
         val apifyKey = preferencesRepository.apifyApiKey.first()
         
         val scrapedData: ScrapedVideoData? = if (apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+            logger.i("ExtractRecipe", "Attempting Apify scrape for $platform")
             val result = scrapeWithApify(videoUrl, apifyKey)
             if (result == null && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+                logger.w("ExtractRecipe", "Apify scraping failed for $platform")
                 return ExtractionResult.ScrapingFailed("Scraping failed for $platform content. The video will be analyzed directly by the LLM.")
             }
+            logger.i("ExtractRecipe", "Apify scrape ${if (result != null) "succeeded" else "returned null"}")
             result
         } else {
             null
         }
 
-        // Get LLM provider
         val providerType = preferencesRepository.llmProviderType.first()
         val provider = llmProviderFactory.create(providerType)
+        logger.i("ExtractRecipe", "Using LLM provider: $providerType")
 
-        // Check API key
         val hasApiKey = when (providerType) {
             ProviderType.OPENAI -> preferencesRepository.openAiApiKey.first().isNotBlank()
             ProviderType.GEMINI -> preferencesRepository.geminiApiKey.first().isNotBlank()
@@ -56,11 +59,11 @@ class ExtractRecipeUseCase @Inject constructor(
         }
 
         if (!hasApiKey) {
+            logger.e("ExtractRecipe", "No API key for provider: $providerType")
             return ExtractionResult.NoApiKey(providerType.name)
         }
 
         return try {
-            // If we have scraped data, pass it to LLM with more context
             val contextUrl = scrapedData?.videoUrl ?: videoUrl
             val description = scrapedData?.description ?: ""
 
@@ -68,22 +71,23 @@ class ExtractRecipeUseCase @Inject constructor(
             
             result.fold(
                 onSuccess = { extractedRecipe ->
-                    // Enhance with scraped description if available
                     val enhancedRecipe = if (description.isNotBlank() && extractedRecipe.description.isBlank()) {
                         extractedRecipe.copy(description = description)
                     } else {
                         extractedRecipe
                     }
                     
-                    // Save to database
                     val savedId = saveRecipeUseCase(enhancedRecipe)
+                    logger.i("ExtractRecipe", "Recipe saved with ID: $savedId")
                     ExtractionResult.Success(enhancedRecipe.copy(id = savedId))
                 },
                 onFailure = { error ->
+                    logger.e("ExtractRecipe", "LLM extraction failed: ${error.message}", error)
                     ExtractionResult.Error(error.message ?: "Extraction failed")
                 }
             )
         } catch (e: Exception) {
+            logger.e("ExtractRecipe", "Unexpected error", e)
             ExtractionResult.Error(e.message ?: "Unknown error")
         }
     }
@@ -95,9 +99,9 @@ class ExtractRecipeUseCase @Inject constructor(
                 Platform.INSTAGRAM -> apifyService.scrapeInstagramReel(url, apiKey)
                 else -> return null
             }
-            
             result.getOrNull()
         } catch (e: Exception) {
+            logger.e("ExtractRecipe", "Apify scrape exception: ${e.message}", e)
             null
         }
     }
