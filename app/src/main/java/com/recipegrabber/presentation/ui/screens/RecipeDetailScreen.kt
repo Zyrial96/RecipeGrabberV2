@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FoodBank
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.FoodBank
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,15 +61,16 @@ fun RecipeDetailScreen(
     viewModel: RecipeDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.recipe?.recipe?.title ?: "Recipe") },
+                title = { Text(uiState.recipe?.recipe?.title ?: "Rezept") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -78,17 +80,24 @@ fun RecipeDetailScreen(
                 ),
                 actions = {
                     uiState.recipe?.recipe?.let { recipe ->
+                        IconButton(onClick = { viewModel.shareRecipe(context) }) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = "Teilen",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                         IconButton(onClick = { viewModel.toggleFavorite() }) {
                             Icon(
                                 if (recipe.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = "Favorit",
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = "Löschen",
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
@@ -130,13 +139,13 @@ fun RecipeDetailScreen(
 
                 item {
                     Text(
-                        text = "Ingredients",
+                        text = "Zutaten",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                itemsIndexed(recipeWithDetails.ingredients) { index, ingredient ->
+                itemsIndexed(recipeWithDetails.ingredients.sortedBy { it.orderIndex }) { _, ingredient ->
                     IngredientItem(
                         ingredient = ingredient,
                         scaledAmount = viewModel.scaleAmount(ingredient.amount)
@@ -146,7 +155,7 @@ fun RecipeDetailScreen(
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Instructions",
+                        text = "Zubereitung",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -163,7 +172,7 @@ fun RecipeDetailScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Recipe not found")
+                Text("Rezept nicht gefunden")
             }
         }
     }
@@ -171,8 +180,8 @@ fun RecipeDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Recipe") },
-            text = { Text("Are you sure you want to delete this recipe?") },
+            title = { Text("Rezept löschen") },
+            text = { Text("Möchtest du dieses Rezept wirklich löschen?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -181,12 +190,12 @@ fun RecipeDetailScreen(
                         onNavigateBack()
                     }
                 ) {
-                    Text("Delete")
+                    Text("Löschen")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text("Abbrechen")
                 }
             }
         )
@@ -226,7 +235,7 @@ fun RecipeHeader(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Servings",
+                        "Portionen",
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -238,7 +247,7 @@ fun RecipeHeader(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                        Icon(Icons.Default.Remove, contentDescription = "Weniger")
                     }
 
                     Text(
@@ -253,7 +262,7 @@ fun RecipeHeader(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Increase")
+                        Icon(Icons.Default.Add, contentDescription = "Mehr")
                     }
                 }
             }
@@ -273,12 +282,12 @@ fun RecipeHeader(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Prep",
+                        "Vorbereitung",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        "${prepTime}min",
+                        "${prepTime} Min.",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -294,12 +303,12 @@ fun RecipeHeader(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Cook",
+                        "Kochzeit",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        "${cookTime}min",
+                        "${cookTime} Min.",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -315,12 +324,12 @@ fun RecipeHeader(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Total",
+                        "Gesamt",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        "${prepTime + cookTime}min",
+                        "${prepTime + cookTime} Min.",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -404,7 +413,7 @@ fun StepItem(step: Step, stepNumber: Int) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "${duration}min",
+                                text = "${duration} Min.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.outline
                             )
