@@ -60,14 +60,22 @@ class KimiProvider @Inject constructor(
                     messages = listOf(
                         KimiMessage(
                             role = "user",
-                            content = """Extrahiere das Rezept aus diesem Video: $videoUrl
+                            content = """Du bist ein Rezept-Extraktor. Analysiere das Video unter dieser URL und extrahiere NUR das Rezept, das im Video tatsächlich zubereitet wird. Erfinde keine Rezepte!
 
-WICHTIG: Antworte ausschließlich auf Deutsch! Verwende deutsche Maßeinheiten (g, kg, ml, l, EL, TL, Prise statt cups, oz, lbs, tbsp, tsp). Temperaturen in °C statt °F.
+URL: $videoUrl
+
+WICHTIGE REGELN:
+- Antworte AUSSCHLIESSLICH auf Deutsch
+- Verwende deutsche Maßeinheiten (g, kg, ml, l, EL, TL, Prise, Pck statt cups, oz, lbs, tbsp, tsp)
+- Temperaturen in °C statt °F
+- Extrahiere genau das EINE Rezept aus dem Video, nicht mehrere
+- Gib alle Zutatenmengen exakt an
+- Gib jeden Zubereitungsschritt vollständig und in der richtigen Reihenfolge an
 
 Gib ein JSON-Objekt mit folgender Struktur zurück:
 {
   "title": "Rezeptname auf Deutsch",
-  "description": "Kurze Beschreibung auf Deutsch",
+  "description": "Kurze Beschreibung auf Deutsch, was das Rezept ist",
   "servings": 4,
   "prepTimeMinutes": 15,
   "cookTimeMinutes": 30,
