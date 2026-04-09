@@ -12,8 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,26 +33,25 @@ class RecipeDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val recipeId: Long = checkNotNull(savedStateHandle["recipeId"])
-
     private val _scaleFactor = MutableStateFlow(1f)
+    private val _error = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<RecipeDetailUiState> = recipeRepository
-        .getRecipeWithDetails(recipeId)
-        .map { recipeWithDetails ->
-            val originalServings = recipeWithDetails?.recipe?.servings ?: 4
-            val currentScale = _scaleFactor.value
-            RecipeDetailUiState(
-                recipe = recipeWithDetails,
-                isLoading = false,
-                scaledServings = (currentScale * originalServings).toInt(),
-                scaleFactor = currentScale
-            )
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = RecipeDetailUiState(isLoading = true)
+    val uiState: StateFlow<RecipeDetailUiState> = combine(
+        recipeRepository.getRecipeWithDetails(recipeId),
+        _scaleFactor
+    ) { recipeWithDetails, scaleFactor ->
+        val originalServings = recipeWithDetails?.recipe?.servings ?: 4
+        RecipeDetailUiState(
+            recipe = recipeWithDetails,
+            isLoading = false,
+            scaledServings = (scaleFactor * originalServings).toInt(),
+            scaleFactor = scaleFactor
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = RecipeDetailUiState(isLoading = true)
+    )
 
     fun incrementServings() {
         val original = uiState.value.recipe?.recipe?.servings ?: 4
@@ -62,7 +60,7 @@ class RecipeDetailViewModel @Inject constructor(
         val newFactor = newServings.toFloat() / original
         if (newFactor <= 10f) {
             _scaleFactor.value = newFactor
-            logger.d("RecipeDetail", "Servings increased to $newServings (factor: ${String.format("%.1f", newFactor)})")
+            logger.d("RecipeDetail", "Servings increased to $newServings (factor: ${"%.1f".format(newFactor)})")
         }
     }
 
@@ -74,7 +72,7 @@ class RecipeDetailViewModel @Inject constructor(
             val newFactor = newServings.toFloat() / original
             if (newFactor >= 0.25f) {
                 _scaleFactor.value = newFactor
-                logger.d("RecipeDetail", "Servings decreased to $newServings (factor: ${String.format("%.1f", newFactor)})")
+                logger.d("RecipeDetail", "Servings decreased to $newServings (factor: ${"%.1f".format(newFactor)})")
             }
         }
     }
@@ -114,20 +112,19 @@ class RecipeDetailViewModel @Inject constructor(
     fun shareRecipe(context: Context) {
         val recipe = uiState.value.recipe ?: return
         val r = recipe.recipe
-        val originalServings = r.servings
         val scaleFactor = _scaleFactor.value
 
         val sb = StringBuilder()
-        sb.appendLine("🍳 ${r.title}")
+        sb.appendLine("\uD83C\uDF73 ${r.title}")
         sb.appendLine()
         if (r.description.isNotBlank()) {
             sb.appendLine(r.description)
             sb.appendLine()
         }
-        sb.appendLine("Portionen: ${uiState.value.scaledServings} (original: $originalServings)")
+        sb.appendLine("Portionen: ${uiState.value.scaledServings}")
         sb.appendLine("Vorbereitung: ${r.prepTimeMinutes} Min | Kochzeit: ${r.cookTimeMinutes} Min")
         sb.appendLine()
-        sb.appendLine("📋 Zutaten:")
+        sb.appendLine("\uD83D\uDCCB Zutaten:")
         recipe.ingredients.sortedBy { it.orderIndex }.forEach { ing ->
             val scaledAmt = ing.amount?.times(scaleFactor)
             val amtStr = if (scaledAmt != null && scaledAmt > 0) {
@@ -140,14 +137,14 @@ class RecipeDetailViewModel @Inject constructor(
             } else ""
             val name = ing.name
             val notes = if (ing.notes.isNotBlank()) " (${ing.notes})" else ""
-            sb.appendLine("• $amtStr $name$notes")
+            sb.appendLine("\u2022 $amtStr $name$notes")
         }
         sb.appendLine()
-        sb.appendLine("📝 Zubereitung:")
+        sb.appendLine("\uD83D\uDCDD Zubereitung:")
         recipe.steps.sortedBy { it.order }.forEachIndexed { idx, step ->
             sb.appendLine("${idx + 1}. ${step.instruction}")
             if (step.duration != null && step.duration > 0) {
-                sb.appendLine("   ⏱ ${step.duration} Min.")
+                sb.appendLine("   \u23F1 ${step.duration} Min.")
             }
         }
         if (r.sourceUrl.isNotBlank()) {
@@ -168,9 +165,5 @@ class RecipeDetailViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
-    }
-
-    companion object {
-        private val _error = MutableStateFlow<String?>(null)
     }
 }

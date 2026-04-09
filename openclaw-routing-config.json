@@ -1,0 +1,431 @@
+{
+  "_note": "NUR OpenCode Go-Abo-Modelle. Kein Zen, kein Pay-per-Use. Siehe MODEL_ROUTING.md fuer Strategie.",
+  "_note_2": "Go-Abo Modelle: glm-5-1 (880/5h), glm-5 (1150/5h), kimi-k2-5 (1850/5h), mimo-v2-pro (1290/5h), mimo-v2-omni (2150/5h), minimax-m2-7 (14000/5h), minimax-m2-5 (20000/5h)",
+  "meta": {
+    "lastTouchedVersion": "2026.4.9",
+    "lastTouchedAt": "2026-04-09T12:00:00.000Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-03-10T04:39:15.609Z",
+    "lastRunVersion": "2026.3.8",
+    "lastRunCommand": "configure",
+    "lastRunMode": "local"
+  },
+  "browser": {
+    "enabled": true,
+    "executablePath": "/home/openclaw/.local/bin/google-chrome",
+    "headless": false,
+    "defaultProfile": "openclaw",
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
+    },
+    "profiles": {
+      "openclaw": {
+        "cdpPort": 18800,
+        "color": "#FF4500"
+      },
+      "google": {
+        "driver": "existing-session",
+        "attachOnly": true,
+        "color": "#4285F4"
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "opencode-go:default": {
+        "provider": "opencode-go",
+        "mode": "token"
+      }
+    }
+  },
+  "acp": {
+    "enabled": true,
+    "backend": "acpx"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "opencode-go/kimi-k2-5",
+        "fallbacks": [
+          "opencode-go/minimax-m2-7",
+          "opencode-go/glm-5-1",
+          "opencode-go/glm-5"
+        ]
+      },
+      "workspace": "/home/openclaw/.openclaw/workspace",
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    },
+    "list": [
+      {
+        "id": "main",
+        "model": {
+          "primary": "opencode-go/kimi-k2-5",
+          "fallbacks": [
+            "opencode-go/minimax-m2-7",
+            "opencode-go/glm-5-1"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "browser",
+            "canvas",
+            "message",
+            "gateway",
+            "nodes",
+            "agents_list",
+            "tts"
+          ]
+        }
+      },
+      {
+        "id": "coding",
+        "name": "Kiro Coding",
+        "workspace": "/home/openclaw/.openclaw/workspace-coding",
+        "agentDir": "/home/openclaw/.openclaw/agents/coding/agent",
+        "model": {
+          "primary": "opencode-go/glm-5-1",
+          "fallbacks": [
+            "opencode-go/glm-5",
+            "opencode-go/kimi-k2-5"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "browser",
+            "exec"
+          ]
+        }
+      },
+      {
+        "id": "shopping",
+        "name": "Kiro Deals",
+        "workspace": "/home/openclaw/.openclaw/workspace-shopping",
+        "model": {
+          "primary": "opencode-go/kimi-k2-5",
+          "fallbacks": [
+            "opencode-go/mimo-v2-pro"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "browser",
+            "message"
+          ]
+        }
+      },
+      {
+        "id": "trading",
+        "name": "Kiro Trading",
+        "workspace": "/home/openclaw/.openclaw/workspace-trading",
+        "model": {
+          "primary": "opencode-go/kimi-k2-5",
+          "fallbacks": [
+            "opencode-go/mimo-v2-pro"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "browser"
+          ]
+        }
+      },
+      {
+        "id": "versicherung",
+        "name": "Kiro Versicherung",
+        "workspace": "/home/openclaw/.openclaw/workspace-versicherung",
+        "model": {
+          "primary": "opencode-go/glm-5-1",
+          "fallbacks": [
+            "opencode-go/kimi-k2-5"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch"
+          ]
+        },
+        "_note": "Go-Modelle: Zero-Retention in US/EU/SG. DSGVO-kompatibel."
+      },
+      {
+        "id": "smarthome",
+        "name": "Kiro SmartHome",
+        "workspace": "/home/openclaw/.openclaw/workspace-smarthome",
+        "model": {
+          "primary": "opencode-go/minimax-m2-7",
+          "fallbacks": [
+            "opencode-go/kimi-k2-5"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "exec"
+          ]
+        }
+      },
+      {
+        "id": "reise",
+        "name": "Kiro Reise",
+        "workspace": "/home/openclaw/.openclaw/workspace-reise",
+        "model": {
+          "primary": "opencode-go/kimi-k2-5",
+          "fallbacks": [
+            "opencode-go/mimo-v2-pro"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch",
+            "browser"
+          ]
+        }
+      },
+      {
+        "id": "email",
+        "name": "Kiro Mail",
+        "workspace": "/home/openclaw/.openclaw/workspace-email",
+        "model": {
+          "primary": "opencode-go/minimax-m2-7",
+          "fallbacks": [
+            "opencode-go/kimi-k2-5"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search"
+          ]
+        }
+      },
+      {
+        "id": "essen",
+        "name": "Kiro Chef",
+        "workspace": "/home/openclaw/.openclaw/workspace-essen",
+        "model": {
+          "primary": "opencode-go/minimax-m2-5",
+          "fallbacks": [
+            "opencode-go/minimax-m2-7"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "web_fetch"
+          ]
+        }
+      },
+      {
+        "id": "paperless",
+        "name": "Kiro Paperless",
+        "workspace": "/home/openclaw/.openclaw/workspace-paperless",
+        "model": {
+          "primary": "opencode-go/kimi-k2-5",
+          "fallbacks": [
+            "opencode-go/glm-5-1"
+          ]
+        },
+        "tools": {
+          "alsoAllow": [
+            "web_search",
+            "exec"
+          ]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "kimi"
+      },
+      "fetch": {
+        "enabled": true
+      }
+    },
+    "sessions": {
+      "visibility": "all"
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "coding",
+      "match": {
+        "channel": "telegram",
+        "accountId": "default",
+        "peer": {
+          "kind": "group",
+          "id": "-1003084014409:topic:19"
+        }
+      }
+    }
+  ],
+  "messages": {
+    "ackReactionScope": "all"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": {
+          "enabled": true
+        },
+        "bootstrap-extra-files": {
+          "enabled": true
+        },
+        "command-logger": {
+          "enabled": true
+        },
+        "session-memory": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "open",
+      "botToken": "REPLACE_WITH_YOUR_BOT_TOKEN",
+      "groups": {
+        "*": {
+          "requireMention": false
+        },
+        "-1003084014409": {
+          "topics": {
+            "2": {
+              "agentId": "trading"
+            },
+            "3": {
+              "agentId": "versicherung"
+            },
+            "5": {
+              "agentId": "smarthome"
+            },
+            "20": {
+              "agentId": "reise"
+            },
+            "21": {
+              "agentId": "email"
+            },
+            "80": {
+              "agentId": "essen"
+            },
+            "637": {
+              "agentId": "paperless"
+            },
+            "945": {
+              "agentId": "shopping"
+            }
+          }
+        }
+      },
+      "allowFrom": [
+        "*"
+      ],
+      "groupAllowFrom": [
+        1337251872
+      ],
+      "groupPolicy": "open",
+      "streaming": "partial"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "controlUi": {
+      "allowedOrigins": [
+        "https://openclaw-1.tailfe1696.ts.net",
+        "https://localhost:18789",
+        "https://127.0.0.1:18789",
+        "http://localhost:18789",
+        "https://100.124.138.109",
+        "http://127.0.0.1:18789"
+      ]
+    },
+    "auth": {
+      "mode": "token",
+      "token": "REPLACE_WITH_YOUR_GATEWAY_TOKEN"
+    },
+    "tailscale": {
+      "mode": "serve",
+      "resetOnExit": false
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "contacts.add",
+        "calendar.add",
+        "reminders.add",
+        "sms.send"
+      ]
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "npm"
+    }
+  },
+  "plugins": {
+    "allow": [
+      "telegram",
+      "acpx",
+      "moonshot",
+      "browser"
+    ],
+    "slots": {
+      "memory": "memory-core"
+    },
+    "entries": {
+      "telegram": {
+        "enabled": true,
+        "config": {}
+      },
+      "acpx": {
+        "enabled": true,
+        "config": {}
+      },
+      "moonshot": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "apiKey": "REPLACE_WITH_YOUR_MOONSHOT_API_KEY"
+          }
+        }
+      },
+      "browser": {
+        "enabled": true
+      }
+    }
+  }
+}
