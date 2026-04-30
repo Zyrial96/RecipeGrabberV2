@@ -1,7 +1,10 @@
 package com.recipegrabber.data.remote
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -54,6 +57,46 @@ class GoogleDriveService @Inject constructor(
 
     fun getSignInIntent(includeGenerativeLanguage: Boolean = false): Intent {
         return buildSignInClient(includeGenerativeLanguage).signInIntent
+    }
+
+    suspend fun authorizeGenerativeLanguage(): Result<GoogleAiAuthorizationStart> = withContext(Dispatchers.IO) {
+        try {
+            val result = Identity.getAuthorizationClient(context)
+                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest())
+                .await()
+
+            if (result.hasResolution()) {
+                val pendingIntent = result.pendingIntent
+                    ?: return@withContext Result.failure(Exception("Google OAuth consent intent unavailable"))
+                logger.i("GoogleOAuth", "User consent is required for Generative Language OAuth")
+                Result.success(GoogleAiAuthorizationStart.NeedsUserConsent(pendingIntent))
+            } else {
+                logger.i("GoogleOAuth", "Generative Language OAuth was already authorized")
+                consumeGenerativeLanguageAuthorizationResult(result)
+                    .map { GoogleAiAuthorizationStart.Authorized(it.email) }
+            }
+        } catch (e: ApiException) {
+            logger.e("GoogleOAuth", "Failed to start authorization with status: ${e.statusCode}", e)
+            Result.failure(googleOAuthFailure("Google OAuth authorization failed", e))
+        } catch (e: Exception) {
+            logger.e("GoogleOAuth", "Failed to start authorization", e)
+            Result.failure(e)
+        }
+    }
+
+    fun handleGenerativeLanguageAuthorizationResult(data: Intent?): Result<GoogleAiAuthorization> {
+        return try {
+            val result = Identity.getAuthorizationClient(context)
+                .getAuthorizationResultFromIntent(data)
+            logger.i("GoogleOAuth", "Authorization result returned scopes: ${result.grantedScopes.orEmpty()}")
+            consumeGenerativeLanguageAuthorizationResult(result)
+        } catch (e: ApiException) {
+            logger.e("GoogleOAuth", "Authorization result failed with status: ${e.statusCode}", e)
+            Result.failure(googleOAuthFailure("Google OAuth authorization failed", e))
+        } catch (e: Exception) {
+            logger.e("GoogleOAuth", "Authorization result failed", e)
+            Result.failure(e)
+        }
     }
 
     fun handleSignInResult(data: Intent?): Result<String> {
@@ -110,28 +153,18 @@ class GoogleDriveService @Inject constructor(
 
     suspend fun getGenerativeLanguageAccessToken(): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val account = GoogleSignIn.getLastSignedInAccount(context)
-                ?: return@withContext Result.failure(Exception("Google OAuth sign-in required"))
+            val result = Identity.getAuthorizationClient(context)
+                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest())
+                .await()
 
-            if (!GoogleSignIn.hasPermissions(account, Scope(GENERATIVE_LANGUAGE_SCOPE))) {
+            if (result.hasResolution()) {
                 return@withContext Result.failure(Exception("Google AI OAuth permission required"))
             }
 
-            val selectedAccount = account.account
-                ?: return@withContext Result.failure(Exception("Google account not available"))
-
-            val credential = GoogleAccountCredential.usingOAuth2(
-                context,
-                listOf(GENERATIVE_LANGUAGE_SCOPE)
-            )
-            credential.selectedAccount = selectedAccount
-
-            val token = credential.token
-            if (token.isNullOrBlank()) {
-                Result.failure(Exception("Google OAuth access token unavailable"))
-            } else {
-                Result.success(token)
-            }
+            consumeGenerativeLanguageAuthorizationResult(result).map { it.accessToken }
+        } catch (e: ApiException) {
+            logger.e("GoogleOAuth", "Failed to get Generative Language access token with status: ${e.statusCode}", e)
+            Result.failure(googleOAuthFailure("Google OAuth access token failed", e))
         } catch (e: Exception) {
             logger.e("GoogleOAuth", "Failed to get Generative Language access token", e)
             Result.failure(e)
@@ -204,4 +237,45 @@ class GoogleDriveService @Inject constructor(
     companion object {
         const val GENERATIVE_LANGUAGE_SCOPE = "https://www.googleapis.com/auth/generative-language.retriever"
     }
+}
+
+sealed class GoogleAiAuthorizationStart {
+    data class NeedsUserConsent(val pendingIntent: PendingIntent) : GoogleAiAuthorizationStart()
+    data class Authorized(val email: String?) : GoogleAiAuthorizationStart()
+}
+
+data class GoogleAiAuthorization(
+    val accessToken: String,
+    val email: String?
+)
+
+private fun consumeGenerativeLanguageAuthorizationResult(
+    result: AuthorizationResult
+): Result<GoogleAiAuthorization> {
+    val grantedScopes = result.grantedScopes.orEmpty()
+    if (GoogleDriveService.GENERATIVE_LANGUAGE_SCOPE !in grantedScopes) {
+        return Result.failure(Exception("Google AI OAuth scope was not granted"))
+    }
+
+    val token = result.accessToken
+    if (token.isNullOrBlank()) {
+        return Result.failure(Exception("Google OAuth access token unavailable"))
+    }
+
+    return Result.success(
+        GoogleAiAuthorization(
+            accessToken = token,
+            email = result.toGoogleSignInAccount()?.email
+        )
+    )
+}
+
+private fun googleOAuthFailure(action: String, error: ApiException): Exception {
+    val detail = error.message.orEmpty()
+    val hint = if (detail.contains("UNREGISTERED_ON_API_CONSOLE")) {
+        "Android OAuth client is not registered in Google API Console for com.recipegrabber and this signing certificate"
+    } else {
+        "status ${error.statusCode}"
+    }
+    return Exception("$action: $hint", error)
 }

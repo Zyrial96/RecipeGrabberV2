@@ -30,6 +30,7 @@ class PreferencesRepository @Inject constructor(
         val LLM_PROVIDER = stringPreferencesKey("llm_provider")
         val LLM_MODEL = stringPreferencesKey("llm_model")
         val GEMINI_AUTH_MODE = stringPreferencesKey("gemini_auth_mode")
+        val GEMINI_OAUTH_AUTHORIZED = booleanPreferencesKey("gemini_oauth_authorized")
         
         // API Keys
         val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
@@ -121,6 +122,10 @@ class PreferencesRepository @Inject constructor(
         }
     }
 
+    val geminiOAuthAuthorized: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.GEMINI_OAUTH_AUTHORIZED] ?: false
+    }
+
     val openAiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.OPENAI_API_KEY] ?: ""
     }
@@ -158,6 +163,12 @@ class PreferencesRepository @Inject constructor(
     suspend fun setGeminiAuthMode(mode: GeminiAuthMode) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.GEMINI_AUTH_MODE] = mode.name
+        }
+    }
+
+    suspend fun setGeminiOAuthAuthorized(authorized: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.GEMINI_OAUTH_AUTHORIZED] = authorized
         }
     }
 

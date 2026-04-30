@@ -1,6 +1,7 @@
 package com.recipegrabber.presentation.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -80,10 +81,10 @@ fun SettingsScreen(
     ) { result ->
         viewModel.handleDriveSignInResult(result.data)
     }
-    val googleAiSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
+    val googleAiAuthorizationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        viewModel.handleGoogleAiSignInResult(result.data)
+        viewModel.handleGoogleAiAuthorizationResult(result.resultCode, result.data)
     }
 
     LaunchedEffect(uiState.message) {
@@ -125,7 +126,11 @@ fun SettingsScreen(
                     uiState = uiState,
                     viewModel = viewModel,
                     onGoogleAiSignIn = {
-                        googleAiSignInLauncher.launch(viewModel.getGoogleAiSignInIntent())
+                        viewModel.startGoogleAiAuthorization { pendingIntent ->
+                            googleAiAuthorizationLauncher.launch(
+                                IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                            )
+                        }
                     }
                 )
             }
@@ -283,6 +288,8 @@ fun AiProviderSettings(
                     Text(
                         text = if (uiState.googleAccountEmail.isNotEmpty()) {
                             "Connected as ${uiState.googleAccountEmail}"
+                        } else if (uiState.geminiOAuthAuthorized) {
+                            "Google OAuth is connected for Gemini."
                         } else {
                             "Connect a Google account to authorize Gemini without an API key."
                         },
@@ -292,7 +299,7 @@ fun AiProviderSettings(
                         onClick = onGoogleAiSignIn,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (uiState.googleAccountEmail.isNotEmpty()) "Reconnect Google OAuth" else "Connect Google OAuth")
+                        Text(if (uiState.geminiOAuthAuthorized || uiState.googleAccountEmail.isNotEmpty()) "Reconnect Google OAuth" else "Connect Google OAuth")
                     }
                 }
             }
