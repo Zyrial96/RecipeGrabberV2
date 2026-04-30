@@ -3,9 +3,12 @@ package com.recipegrabber.data.logging
 import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
@@ -37,6 +40,8 @@ class AppLogger @Inject constructor(
     private val buffer = ConcurrentLinkedQueue<String>()
     private val isWriting = AtomicBoolean(false)
     private val maxLogSize = 5 * 1024 * 1024L
+    private val loggerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val fileMutex = Mutex()
 
     fun d(tag: String, message: String) = log(LogLevel.DEBUG, tag, message)
     fun i(tag: String, message: String) = log(LogLevel.INFO, tag, message)
@@ -51,28 +56,33 @@ class AppLogger @Inject constructor(
     }
 
     private fun log(level: String, tag: String, message: String) {
-        val timestamp = dateFormat.format(Date())
+        val timestamp = format(dateFormat, Date())
         val threadName = Thread.currentThread().name
         val logLine = "$timestamp [$level] [$threadName] $tag: $message"
-        android.util.Log.d("RG-$tag", message)
+        android.util.Log.println(androidPriority(level), "RG-$tag", message)
         buffer.add(logLine)
         flushIfNeeded()
     }
 
     private fun flushIfNeeded() {
         if (isWriting.compareAndSet(false, true)) {
-            GlobalScope.launch(Dispatchers.IO) {
+            loggerScope.launch {
                 try {
-                    flushBuffer()
-                    rotateIfNeeded()
+                    fileMutex.withLock {
+                        flushBufferLocked()
+                        rotateIfNeededLocked()
+                    }
                 } finally {
                     isWriting.set(false)
+                    if (buffer.isNotEmpty()) {
+                        flushIfNeeded()
+                    }
                 }
             }
         }
     }
 
-    private fun flushBuffer() {
+    private fun flushBufferLocked() {
         val writer = FileWriter(currentLogFile, true)
         writer.use { w ->
             while (buffer.isNotEmpty()) {
@@ -83,9 +93,9 @@ class AppLogger @Inject constructor(
         }
     }
 
-    private fun rotateIfNeeded() {
+    private fun rotateIfNeededLocked() {
         if (currentLogFile.length() > maxLogSize) {
-            val date = fileDateFormat.format(Date())
+            val date = format(fileDateFormat, Date())
             val rotated = File(logDir, "app-$date.log")
             if (rotated.exists()) rotated.delete()
             currentLogFile.renameTo(rotated)
@@ -93,32 +103,36 @@ class AppLogger @Inject constructor(
     }
 
     suspend fun getLogContent(): String = withContext(Dispatchers.IO) {
-        flushBuffer()
-        val sb = StringBuilder()
-        sb.appendLine("=== RecipeGrabber Log Export ===")
-        sb.appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
-        sb.appendLine("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
-        sb.appendLine("App Version: ${getAppVersion()}")
-        sb.appendLine("Exported: ${dateFormat.format(Date())}")
-        sb.appendLine("================================\n")
+        fileMutex.withLock {
+            flushBufferLocked()
+            val sb = StringBuilder()
+            sb.appendLine("=== RecipeGrabber Log Export ===")
+            sb.appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+            sb.appendLine("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
+            sb.appendLine("App Version: ${getAppVersion()}")
+            sb.appendLine("Exported: ${format(dateFormat, Date())}")
+            sb.appendLine("================================\n")
 
-        val logFiles = logDir.listFiles()
-            ?.filter { it.name.endsWith(".log") }
-            ?.sortedBy { it.name }
-            ?: emptyList()
+            val logFiles = logDir.listFiles()
+                ?.filter { it.name.endsWith(".log") }
+                ?.sortedBy { it.name }
+                ?: emptyList()
 
-        for (file in logFiles) {
-            sb.appendLine("--- ${file.name} ---")
-            sb.appendLine(file.readText())
-            sb.appendLine()
+            for (file in logFiles) {
+                sb.appendLine("--- ${file.name} ---")
+                sb.appendLine(file.readText())
+                sb.appendLine()
+            }
+
+            sb.toString()
         }
-
-        sb.toString()
     }
 
     suspend fun clearLogs(): Boolean = withContext(Dispatchers.IO) {
-        logDir.listFiles()?.forEach { it.delete() }
-        buffer.clear()
+        fileMutex.withLock {
+            logDir.listFiles()?.forEach { it.delete() }
+            buffer.clear()
+        }
         true
     }
 
@@ -145,6 +159,22 @@ class AppLogger @Inject constructor(
             "${pi.versionName} (${pi.longVersionCode})"
         } catch (e: Exception) {
             "unknown"
+        }
+    }
+
+    private fun format(formatter: SimpleDateFormat, date: Date): String {
+        return synchronized(formatter) {
+            formatter.format(date)
+        }
+    }
+
+    private fun androidPriority(level: String): Int {
+        return when (level) {
+            LogLevel.DEBUG -> android.util.Log.DEBUG
+            LogLevel.INFO -> android.util.Log.INFO
+            LogLevel.WARN -> android.util.Log.WARN
+            LogLevel.ERROR -> android.util.Log.ERROR
+            else -> android.util.Log.DEBUG
         }
     }
 
