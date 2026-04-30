@@ -32,7 +32,6 @@ import com.recipegrabber.presentation.ui.screens.onboarding.OnboardingScreen
 import com.recipegrabber.presentation.ui.theme.RecipeGrabberTheme
 import com.recipegrabber.service.ClipboardMonitorService
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,6 +44,7 @@ class MainActivity : ComponentActivity() {
     lateinit var preferencesRepository: PreferencesRepository
 
     private val pendingVideoUrl = AtomicReference<String?>(null)
+    private var clipboardReceiverRegistered = false
     private val clipboardReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED) {
@@ -188,9 +188,13 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         lifecycleScope.launch {
             val onboardingCompleted = preferencesRepository.onboardingCompleted.first()
-            if (onboardingCompleted) {
+            val clipboardMonitorEnabled = preferencesRepository.clipboardMonitorEnabled.first()
+            if (onboardingCompleted && clipboardMonitorEnabled) {
                 startClipboardMonitor()
                 registerClipboardReceiver()
+            } else {
+                stopClipboardMonitor()
+                unregisterClipboardReceiver()
             }
         }
     }
@@ -205,16 +209,25 @@ class MainActivity : ComponentActivity() {
         startForegroundService(serviceIntent)
     }
 
+    private fun stopClipboardMonitor() {
+        val serviceIntent = Intent(this, ClipboardMonitorService::class.java)
+        stopService(serviceIntent)
+    }
+
     private fun registerClipboardReceiver() {
+        if (clipboardReceiverRegistered) return
         val filter = IntentFilter(ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED)
         registerReceiver(clipboardReceiver, filter, RECEIVER_NOT_EXPORTED)
+        clipboardReceiverRegistered = true
     }
 
     private fun unregisterClipboardReceiver() {
         try {
             unregisterReceiver(clipboardReceiver)
+            clipboardReceiverRegistered = false
         } catch (e: IllegalArgumentException) {
             // Receiver was not registered
+            clipboardReceiverRegistered = false
         }
     }
 }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,6 +35,8 @@ class ClipboardMonitorService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var clipboardManager: ClipboardManager
+    private var clipboardListenerRegistered = false
+    private var settingsObserverStarted = false
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         onClipboardChanged()
@@ -48,7 +51,11 @@ class ClipboardMonitorService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         logger.i("Clipboard", "Service started")
         startForeground(NOTIFICATION_ID, createNotification())
-        clipboardManager.addPrimaryClipChangedListener(clipboardListener)
+        if (!clipboardListenerRegistered) {
+            clipboardManager.addPrimaryClipChangedListener(clipboardListener)
+            clipboardListenerRegistered = true
+        }
+        observeMonitorSetting()
         return START_STICKY
     }
 
@@ -57,8 +64,24 @@ class ClipboardMonitorService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         logger.i("Clipboard", "Service destroyed")
-        clipboardManager.removePrimaryClipChangedListener(clipboardListener)
+        if (clipboardListenerRegistered) {
+            clipboardManager.removePrimaryClipChangedListener(clipboardListener)
+            clipboardListenerRegistered = false
+        }
         serviceScope.cancel()
+    }
+
+    private fun observeMonitorSetting() {
+        if (settingsObserverStarted) return
+        settingsObserverStarted = true
+        serviceScope.launch {
+            preferencesRepository.clipboardMonitorEnabled.collect { isEnabled ->
+                if (!isEnabled) {
+                    logger.i("Clipboard", "Clipboard monitor disabled, stopping service")
+                    stopSelf()
+                }
+            }
+        }
     }
 
     private fun onClipboardChanged() {
