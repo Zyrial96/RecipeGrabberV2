@@ -105,9 +105,7 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("com.google.api-client:google-api-client-android:2.4.1")
-    implementation("com.google.oauth-client:google-oauth-client-jetty:1.36.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20240521-2.0.0")
-    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
 
     implementation(libs.coil.compose)
 
