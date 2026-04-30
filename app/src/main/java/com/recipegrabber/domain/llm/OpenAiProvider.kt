@@ -90,11 +90,11 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
             )
 
             val content = response.choices.firstOrNull()?.message?.content
-                if (content.isNullOrBlank()) {
-                    logger.e("OpenAI", "Empty response from API")
-                    return@withContext Result.failure(Exception("No response from OpenAI"))
-                }
-                logger.d("OpenAI", "Raw response: ${content.take(500)}")
+            if (content.isNullOrBlank()) {
+                logger.e("OpenAI", "Empty response from API")
+                return@withContext Result.failure(Exception("No response from OpenAI"))
+            }
+            logger.d("OpenAI", "Raw response: ${content.take(500)}")
 
             val cleanJson = content.replace("```json", "").replace("```", "").trim()
             val recipe = parseRecipeFromJson(cleanJson, videoUrl)

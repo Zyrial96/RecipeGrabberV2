@@ -96,11 +96,11 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
             )
 
             val content = response.content.firstOrNull()?.text
-                if (content.isNullOrBlank()) {
-                    logger.e("Claude", "Empty response from API")
-                    return@withContext Result.failure(Exception("No response from Claude"))
-                }
-                logger.d("Claude", "Raw response: ${content.take(500)}")
+            if (content.isNullOrBlank()) {
+                logger.e("Claude", "Empty response from API")
+                return@withContext Result.failure(Exception("No response from Claude"))
+            }
+            logger.d("Claude", "Raw response: ${content.take(500)}")
 
             val recipe = parseClaudeResponse(content, videoUrl)
             logger.i("Claude", "Successfully extracted recipe: ${recipe.title}")

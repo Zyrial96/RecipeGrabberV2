@@ -46,11 +46,11 @@ class ApifyService @Inject constructor(
             )
 
             val runId = runResponse.data?.id
-                if (runId == null) {
-                    logger.e("Apify", "Failed to start Instagram scraper - no run ID returned")
-                    return@withContext Result.failure(Exception("Failed to start Instagram scraper"))
-                }
-                logger.d("Apify", "Instagram scraper run started: $runId")
+            if (runId == null) {
+                logger.e("Apify", "Failed to start Instagram scraper - no run ID returned")
+                return@withContext Result.failure(Exception("Failed to start Instagram scraper"))
+            }
+            logger.d("Apify", "Instagram scraper run started: $runId")
 
             var attempts = 0
             var datasetId: String? = null
@@ -114,11 +114,11 @@ class ApifyService @Inject constructor(
             )
 
             val runId = runResponse.data?.id
-                if (runId == null) {
-                    logger.e("Apify", "Failed to start TikTok scraper - no run ID returned")
-                    return@withContext Result.failure(Exception("Failed to start TikTok scraper"))
-                }
-                logger.d("Apify", "TikTok scraper run started: $runId")
+            if (runId == null) {
+                logger.e("Apify", "Failed to start TikTok scraper - no run ID returned")
+                return@withContext Result.failure(Exception("Failed to start TikTok scraper"))
+            }
+            logger.d("Apify", "TikTok scraper run started: $runId")
 
             var attempts = 0
             var datasetId: String? = null
