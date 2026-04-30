@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.GoogleDriveService
 import com.recipegrabber.data.repository.PreferencesRepository
+import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.LlmModels
 import com.recipegrabber.domain.llm.ProviderType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,7 @@ import javax.inject.Inject
 data class SettingsUiState(
     val llmProvider: ProviderType = ProviderType.OPENAI,
     val llmModel: String = LlmModels.GPT_4O.id,
+    val geminiAuthMode: GeminiAuthMode = GeminiAuthMode.API_KEY,
     val openAiApiKey: String = "",
     val geminiApiKey: String = "",
     val claudeApiKey: String = "",
@@ -54,6 +56,9 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesRepository.llmModel.collect { _uiState.value = _uiState.value.copy(llmModel = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.geminiAuthMode.collect { _uiState.value = _uiState.value.copy(geminiAuthMode = it) }
         }
         viewModelScope.launch {
             preferencesRepository.openAiApiKey.collect { _uiState.value = _uiState.value.copy(openAiApiKey = it) }
@@ -109,6 +114,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setGeminiAuthMode(mode: GeminiAuthMode) {
+        viewModelScope.launch {
+            preferencesRepository.setGeminiAuthMode(mode)
+            _message.value = when (mode) {
+                GeminiAuthMode.API_KEY -> "Gemini uses API key authentication"
+                GeminiAuthMode.GOOGLE_OAUTH -> "Gemini uses Google OAuth"
+            }
+        }
+    }
+
     fun setOpenAiApiKey(apiKey: String) {
         viewModelScope.launch {
             preferencesRepository.setOpenAiApiKey(apiKey)
@@ -153,10 +168,22 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun getSignInIntent(): Intent {
-        return googleDriveService.getSignInIntent()
+        return getDriveSignInIntent()
+    }
+
+    fun getDriveSignInIntent(): Intent {
+        return googleDriveService.getSignInIntent(includeGenerativeLanguage = false)
+    }
+
+    fun getGoogleAiSignInIntent(): Intent {
+        return googleDriveService.getSignInIntent(includeGenerativeLanguage = true)
     }
 
     fun handleSignInResult(data: Intent?) {
+        handleDriveSignInResult(data)
+    }
+
+    fun handleDriveSignInResult(data: Intent?) {
         viewModelScope.launch {
             _message.value = null
             try {
@@ -173,6 +200,27 @@ class SettingsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _message.value = "Failed to sign in to Google"
+            }
+        }
+    }
+
+    fun handleGoogleAiSignInResult(data: Intent?) {
+        viewModelScope.launch {
+            _message.value = null
+            try {
+                val result = googleDriveService.handleSignInResult(data)
+                result.fold(
+                    onSuccess = { email ->
+                        preferencesRepository.setGoogleAccountEmail(email)
+                        preferencesRepository.setGeminiAuthMode(GeminiAuthMode.GOOGLE_OAUTH)
+                        _message.value = "Google OAuth enabled for Gemini"
+                    },
+                    onFailure = {
+                        _message.value = "Failed to authorize Google OAuth"
+                    }
+                )
+            } catch (e: Exception) {
+                _message.value = "Failed to authorize Google OAuth"
             }
         }
     }

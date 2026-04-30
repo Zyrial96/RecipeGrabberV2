@@ -1,5 +1,7 @@
 package com.recipegrabber.presentation.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -58,6 +60,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.LlmModels
 import com.recipegrabber.domain.llm.ProviderType
 import com.recipegrabber.presentation.viewmodel.SettingsUiState
@@ -72,6 +75,16 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val driveSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleDriveSignInResult(result.data)
+    }
+    val googleAiSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleGoogleAiSignInResult(result.data)
+    }
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
@@ -108,7 +121,13 @@ fun SettingsScreen(
         ) {
             // AI Provider Section
             SettingsSection(title = "AI Provider", icon = Icons.Default.SmartToy) {
-                AiProviderSettings(uiState, viewModel)
+                AiProviderSettings(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onGoogleAiSignIn = {
+                        googleAiSignInLauncher.launch(viewModel.getGoogleAiSignInIntent())
+                    }
+                )
             }
 
             // Apify Section
@@ -118,7 +137,13 @@ fun SettingsScreen(
 
             // Google Drive Section
             SettingsSection(title = "Google Drive Sync", icon = Icons.Default.CloudSync) {
-                DriveSettings(uiState, viewModel)
+                DriveSettings(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onDriveSignIn = {
+                        driveSignInLauncher.launch(viewModel.getDriveSignInIntent())
+                    }
+                )
             }
 
             // Clipboard Section
@@ -150,7 +175,11 @@ fun SettingsScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AiProviderSettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+fun AiProviderSettings(
+    uiState: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onGoogleAiSignIn: () -> Unit
+) {
     var showApiKey by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -209,6 +238,65 @@ fun AiProviderSettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     Text(model.description, style = MaterialTheme.typography.bodySmall)
                 }
             }
+        }
+
+        if (uiState.llmProvider == ProviderType.GEMINI) {
+            Text(
+                "Authentication",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                FilterChip(
+                    selected = uiState.geminiAuthMode == GeminiAuthMode.API_KEY,
+                    onClick = { viewModel.setGeminiAuthMode(GeminiAuthMode.API_KEY) },
+                    label = { Text("API Key") },
+                    leadingIcon = if (uiState.geminiAuthMode == GeminiAuthMode.API_KEY) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null
+                )
+                FilterChip(
+                    selected = uiState.geminiAuthMode == GeminiAuthMode.GOOGLE_OAUTH,
+                    onClick = { viewModel.setGeminiAuthMode(GeminiAuthMode.GOOGLE_OAUTH) },
+                    label = { Text("Google OAuth") },
+                    leadingIcon = if (uiState.geminiAuthMode == GeminiAuthMode.GOOGLE_OAUTH) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null
+                )
+            }
+        }
+
+        if (uiState.llmProvider == ProviderType.GEMINI && uiState.geminiAuthMode == GeminiAuthMode.GOOGLE_OAUTH) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (uiState.googleAccountEmail.isNotEmpty()) {
+                            "Connected as ${uiState.googleAccountEmail}"
+                        } else {
+                            "Connect a Google account to authorize Gemini without an API key."
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedButton(
+                        onClick = onGoogleAiSignIn,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (uiState.googleAccountEmail.isNotEmpty()) "Reconnect Google OAuth" else "Connect Google OAuth")
+                    }
+                }
+            }
+            return@Column
         }
 
         // API Key Input
@@ -292,7 +380,11 @@ fun ApifySettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 }
 
 @Composable
-fun DriveSettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+fun DriveSettings(
+    uiState: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onDriveSignIn: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsToggle(
             icon = Icons.Default.CloudSync,
@@ -303,7 +395,13 @@ fun DriveSettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 "Backup recipes to Google Drive"
             },
             checked = uiState.driveSyncEnabled,
-            onCheckedChange = { viewModel.setDriveSyncEnabled(it) }
+            onCheckedChange = { enabled ->
+                if (enabled) {
+                    onDriveSignIn()
+                } else {
+                    viewModel.setDriveSyncEnabled(false)
+                }
+            }
         )
 
         if (uiState.driveSyncEnabled) {
@@ -312,6 +410,13 @@ fun DriveSettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("Disconnect")
+            }
+        } else {
+            OutlinedButton(
+                onClick = onDriveSignIn,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Connect Google")
             }
         }
     }

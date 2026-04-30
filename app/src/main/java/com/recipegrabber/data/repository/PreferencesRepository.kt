@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.ProviderType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,7 @@ class PreferencesRepository @Inject constructor(
         // LLM Provider
         val LLM_PROVIDER = stringPreferencesKey("llm_provider")
         val LLM_MODEL = stringPreferencesKey("llm_model")
+        val GEMINI_AUTH_MODE = stringPreferencesKey("gemini_auth_mode")
         
         // API Keys
         val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
@@ -110,6 +112,15 @@ class PreferencesRepository @Inject constructor(
         }
     }
 
+    val geminiAuthMode: Flow<GeminiAuthMode> = context.dataStore.data.map { preferences ->
+        val value = preferences[PreferencesKeys.GEMINI_AUTH_MODE] ?: GeminiAuthMode.API_KEY.name
+        try {
+            GeminiAuthMode.valueOf(value)
+        } catch (e: IllegalArgumentException) {
+            GeminiAuthMode.API_KEY
+        }
+    }
+
     val openAiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.OPENAI_API_KEY] ?: ""
     }
@@ -141,6 +152,12 @@ class PreferencesRepository @Inject constructor(
     suspend fun setLlmProvider(type: ProviderType) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.LLM_PROVIDER] = type.name
+        }
+    }
+
+    suspend fun setGeminiAuthMode(mode: GeminiAuthMode) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.GEMINI_AUTH_MODE] = mode.name
         }
     }
 

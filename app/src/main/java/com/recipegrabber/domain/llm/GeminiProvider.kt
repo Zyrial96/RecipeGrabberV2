@@ -4,20 +4,19 @@ import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.Step
 import com.recipegrabber.data.logging.AppLogger
+import com.recipegrabber.data.remote.GoogleDriveService
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class GeminiProvider @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
+    private val googleDriveService: GoogleDriveService,
     private val logger: AppLogger
 ) : LlmProvider {
 
@@ -30,12 +29,6 @@ class GeminiProvider @Inject constructor(
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
             logger.i("Gemini", "Starting extraction for URL: $videoUrl")
-            val apiKey = preferencesRepository.geminiApiKey.first()
-            if (apiKey.isBlank()) {
-                logger.e("Gemini", "API key not configured")
-                return@withContext Result.failure(Exception("Gemini API key not configured"))
-            }
-
             val modelId = preferencesRepository.llmModel.first()
             val model = if (modelId.isNotBlank() && modelId.startsWith("gemini")) {
                 modelId
@@ -84,13 +77,25 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                 }
             """.trimIndent()
 
-            val mediaType = "application/json".toMediaType()
-            val requestBody = jsonBody.toRequestBody(mediaType)
+            val requestAuth = when (preferencesRepository.geminiAuthMode.first()) {
+                GeminiAuthMode.API_KEY -> {
+                    val apiKey = preferencesRepository.geminiApiKey.first()
+                    if (apiKey.isBlank()) {
+                        logger.e("Gemini", "API key not configured")
+                        return@withContext Result.failure(Exception("Gemini API key not configured"))
+                    }
+                    GeminiRequestAuth.ApiKey(apiKey)
+                }
+                GeminiAuthMode.GOOGLE_OAUTH -> {
+                    val token = googleDriveService.getGenerativeLanguageAccessToken()
+                        .getOrElse { error ->
+                            return@withContext Result.failure(error)
+                        }
+                    GeminiRequestAuth.OAuth(token)
+                }
+            }
 
-            val request = Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey")
-                .post(requestBody)
-                .build()
+            val request = GeminiRequestFactory.buildGenerateContentRequest(model, jsonBody, requestAuth)
 
             val response = client.newCall(request).execute()
 

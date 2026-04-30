@@ -41,11 +41,7 @@ class GoogleDriveService @Inject constructor(
     private var googleSignInClient: GoogleSignInClient? = null
 
     init {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(context, gso)
+        googleSignInClient = buildSignInClient(includeGenerativeLanguage = false)
 
         // Check if already signed in
         val account = GoogleSignIn.getLastSignedInAccount(context)
@@ -56,9 +52,8 @@ class GoogleDriveService @Inject constructor(
         }
     }
 
-    fun getSignInIntent(): Intent {
-        return googleSignInClient?.signInIntent 
-            ?: throw IllegalStateException("GoogleSignInClient not initialized")
+    fun getSignInIntent(includeGenerativeLanguage: Boolean = false): Intent {
+        return buildSignInClient(includeGenerativeLanguage).signInIntent
     }
 
     fun handleSignInResult(data: Intent?): Result<String> {
@@ -113,6 +108,48 @@ class GoogleDriveService @Inject constructor(
         }
     }
 
+    suspend fun getGenerativeLanguageAccessToken(): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val account = GoogleSignIn.getLastSignedInAccount(context)
+                ?: return@withContext Result.failure(Exception("Google OAuth sign-in required"))
+
+            if (!GoogleSignIn.hasPermissions(account, Scope(GENERATIVE_LANGUAGE_SCOPE))) {
+                return@withContext Result.failure(Exception("Google AI OAuth permission required"))
+            }
+
+            val selectedAccount = account.account
+                ?: return@withContext Result.failure(Exception("Google account not available"))
+
+            val credential = GoogleAccountCredential.usingOAuth2(
+                context,
+                listOf(GENERATIVE_LANGUAGE_SCOPE)
+            )
+            credential.selectedAccount = selectedAccount
+
+            val token = credential.token
+            if (token.isNullOrBlank()) {
+                Result.failure(Exception("Google OAuth access token unavailable"))
+            } else {
+                Result.success(token)
+            }
+        } catch (e: Exception) {
+            logger.e("GoogleOAuth", "Failed to get Generative Language access token", e)
+            Result.failure(e)
+        }
+    }
+
+    private fun buildSignInClient(includeGenerativeLanguage: Boolean): GoogleSignInClient {
+        val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
+
+        if (includeGenerativeLanguage) {
+            builder.requestScopes(Scope(GENERATIVE_LANGUAGE_SCOPE))
+        }
+
+        return GoogleSignIn.getClient(context, builder.build())
+    }
+
     suspend fun uploadRecipe(recipeJson: String, fileName: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val drive = driveService ?: return@withContext Result.failure(Exception("Not signed in"))
@@ -162,5 +199,9 @@ class GoogleDriveService @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    companion object {
+        const val GENERATIVE_LANGUAGE_SCOPE = "https://www.googleapis.com/auth/generative-language.retriever"
     }
 }
