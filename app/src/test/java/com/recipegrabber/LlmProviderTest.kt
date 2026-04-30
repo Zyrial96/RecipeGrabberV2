@@ -19,7 +19,7 @@ class LlmProviderTest {
         @Test
         @DisplayName("Should create valid Recipe entity")
         fun `should create valid Recipe entity`() {
-val recipe = Recipe(
+            val recipe = Recipe(
                 id = 1,
                 title = "Test Recipe",
                 description = "A test recipe",

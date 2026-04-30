@@ -58,6 +58,12 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
         }
     }
+
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
 }
 
 dependencies {
@@ -112,6 +118,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.junit.params)
     testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
     testRuntimeOnly(libs.junit.engine)
 
     testImplementation(libs.androidx.room.runtime)
