@@ -119,7 +119,8 @@ class RecipeRepositoryTest {
                 Ingredient(id = 0, recipeId = 0, name = "Sugar", amount = 1.0, unit = "cup", notes = "", orderIndex = 1)
             )
 
-            coEvery { ingredientDao.insertIngredients(any()) } returns listOf(1L, 2L)
+            coEvery { recipeDao.insertRecipe(any()) } returns 1L
+            coEvery { ingredientDao.insertIngredients(any()) } returns Unit
 
             repository.insertRecipeWithDetails(
                 testRecipe,
@@ -143,7 +144,8 @@ class RecipeRepositoryTest {
                 Step(id = 0, recipeId = 0, order = 2, instruction = "Add wet ingredients", duration = null, imageUrl = null)
             )
 
-            coEvery { stepDao.insertSteps(any()) } returns listOf(1L, 2L)
+            coEvery { recipeDao.insertRecipe(any()) } returns 1L
+            coEvery { stepDao.insertSteps(any()) } returns Unit
 
             repository.insertRecipeWithDetails(
                 testRecipe,
