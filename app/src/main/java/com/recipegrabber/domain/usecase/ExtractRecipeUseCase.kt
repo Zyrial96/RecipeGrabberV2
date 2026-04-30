@@ -39,7 +39,7 @@ class ExtractRecipeUseCase @Inject constructor(
     private val _progress = MutableStateFlow(ProgressUpdate("idle", "Preparing...", 0f))
     val progress: StateFlow<ProgressUpdate> = _progress.asStateFlow()
 
-    suspend fun invokeWithProgress(videoUrl: String): ExtractionResult {
+    suspend fun invokeWithProgress(videoUrl: String, useApify: Boolean = true): ExtractionResult {
         _progress.value = ProgressUpdate("detecting", "Erkenne Plattform...", 0.05f)
         logger.i("ExtractRecipe", "Starting extraction for: $videoUrl")
         val platform = detectPlatform(videoUrl)
@@ -48,7 +48,7 @@ class ExtractRecipeUseCase @Inject constructor(
         
         val apifyKey = preferencesRepository.apifyApiKey.first()
         
-        val scrapedData: ScrapedVideoData? = if (apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
+        val scrapedData: ScrapedVideoData? = if (useApify && apifyKey.isNotBlank() && (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM)) {
             _progress.value = ProgressUpdate("scraping", "Video wird von $platformName heruntergeladen...", 0.15f)
             logger.i("ExtractRecipe", "Attempting Apify scrape for $platform")
             val result = scrapeWithApify(videoUrl, apifyKey)
@@ -122,6 +122,8 @@ class ExtractRecipeUseCase @Inject constructor(
     }
 
     suspend operator fun invoke(videoUrl: String): ExtractionResult = invokeWithProgress(videoUrl)
+
+    suspend fun invokeDirect(videoUrl: String): ExtractionResult = invokeWithProgress(videoUrl, useApify = false)
 
     private suspend fun scrapeWithApify(url: String, apiKey: String): ScrapedVideoData? {
         return try {

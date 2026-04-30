@@ -94,7 +94,7 @@ class RecipeExtractionViewModel @Inject constructor(
                     )
                 }
                 is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed -> {
-                    logger.w("ExtractionVM", "Scraping failed, retrying direct extraction")
+                    logger.w("ExtractionVM", "Scraping failed, continuing with direct extraction")
                     _uiState.value = ExtractionUiState(
                         isLoading = true,
                         videoUrl = videoUrl,
@@ -103,7 +103,7 @@ class RecipeExtractionViewModel @Inject constructor(
                         progressPercent = 0.4f
                     )
                     
-                    val retryResult = extractRecipeUseCase(videoUrl)
+                    val retryResult = extractRecipeUseCase.invokeDirect(videoUrl)
                     when (retryResult) {
                         is ExtractRecipeUseCase.ExtractionResult.Success -> {
                             _uiState.value = ExtractionUiState(
