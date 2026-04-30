@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +36,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -43,14 +43,14 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
-    private val pendingVideoUrl = AtomicReference<String?>(null)
+    private var pendingVideoUrl by mutableStateOf<String?>(null)
     private var clipboardReceiverRegistered = false
     private val clipboardReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED) {
                 val url = intent.getStringExtra(ClipboardMonitorService.EXTRA_VIDEO_URL)
                 url?.let {
-                    pendingVideoUrl.set(it)
+                    pendingVideoUrl = it
                 }
             }
         }
@@ -70,10 +70,13 @@ class MainActivity : ComponentActivity() {
             var showExtractionSheet by remember { mutableStateOf(false) }
             var extractionUrl by remember { mutableStateOf("") }
 
-            val url = pendingVideoUrl.getAndSet(null)
-            if (url != null) {
-                extractionUrl = url
-                showExtractionSheet = true
+            LaunchedEffect(pendingVideoUrl) {
+                val url = pendingVideoUrl
+                if (url != null) {
+                    extractionUrl = url
+                    showExtractionSheet = true
+                    pendingVideoUrl = null
+                }
             }
 
             RecipeGrabberTheme(darkTheme = darkModeEnabled) {
@@ -163,7 +166,7 @@ class MainActivity : ComponentActivity() {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
             sharedText?.let { text ->
                 if (isValidVideoUrl(text)) {
-                    pendingVideoUrl.set(text)
+                    pendingVideoUrl = text
                 }
             }
         }
