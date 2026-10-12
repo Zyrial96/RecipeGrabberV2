@@ -102,8 +102,7 @@ fun OnboardingScreen(
                     )
                     2 -> LlmSelectionStep(
                         onComplete = {
-                            viewModel.completeOnboarding()
-                            onComplete()
+                            viewModel.completeOnboarding(onComplete)
                         },
                         onBack = { viewModel.previousStep() }
                     )

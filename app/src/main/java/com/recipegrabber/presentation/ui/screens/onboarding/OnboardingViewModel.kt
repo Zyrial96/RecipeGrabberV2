@@ -30,9 +30,10 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    fun completeOnboarding() {
+    fun completeOnboarding(onComplete: () -> Unit) {
         viewModelScope.launch {
             preferencesRepository.setOnboardingCompleted(true)
+            onComplete()
         }
     }
 }
