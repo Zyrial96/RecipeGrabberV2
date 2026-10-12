@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test
 class GeminiRequestFactoryTest {
 
     @Test
-    @DisplayName("Should use API key query parameter for API key auth")
-    fun `should use api key query parameter for api key auth`() {
+    @DisplayName("Should keep API keys out of URLs")
+    fun `should keep api key out of url`() {
         val request = GeminiRequestFactory.buildGenerateContentRequest(
             model = "gemini-2.5-flash",
             jsonBody = "{}",
@@ -20,10 +20,11 @@ class GeminiRequestFactoryTest {
         )
 
         assertEquals(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
             request.url.toString()
         )
         assertNull(request.header("Authorization"))
+        assertEquals("test-key", request.header("x-goog-api-key"))
     }
 
     @Test

@@ -1,12 +1,11 @@
 package com.recipegrabber.domain.llm
 
-import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Recipe
-import com.recipegrabber.data.local.entity.Step
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.GoogleDriveService
 import com.recipegrabber.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -66,16 +65,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
   "sourceType": "VIDEO"
 }""".trimMargin()
 
-            val jsonBody = """
-                {
-                    "contents": [{
-                        "parts": [{"text": ${gson.toJson(prompt)}}]
-                    }],
-                    "generationConfig": {
-                        "responseMimeType": "application/json"
-                    }
-                }
-            """.trimIndent()
+            val jsonBody = GeminiRequestFactory.buildVideoBody(videoUrl, prompt)
 
             val requestAuth = when (preferencesRepository.geminiAuthMode.first()) {
                 GeminiAuthMode.API_KEY -> {
@@ -97,109 +87,23 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
 
             val request = GeminiRequestFactory.buildGenerateContentRequest(model, jsonBody, requestAuth)
 
-            val response = client.newCall(request).execute()
-
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string() ?: "No error body"
-                logger.e("Gemini", "API error ${response.code}: $errorBody")
-                return@withContext Result.failure(Exception("Gemini API error: ${response.code} - $errorBody"))
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    logger.e("Gemini", "API error ${response.code}")
+                    return@withContext Result.failure(Exception("Gemini API error: ${response.code}"))
+                }
+                val responseBody = response.body?.string()
+                    ?: return@withContext Result.failure(Exception("No response from Gemini"))
+                val parsed = GeminiResponseParser.parse(responseBody, videoUrl)
+                logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
+                Result.success(parsed)
             }
-
-            val responseBody = response.body?.string()
-                ?: return@withContext Result.failure(Exception("No response from Gemini"))
-            logger.d("Gemini", "Response length: ${responseBody.length} chars")
-
-            val parsed = parseGeminiResponse(responseBody, videoUrl)
-            logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
-            Result.success(parsed)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("Gemini", "Extraction failed", e)
             Result.failure(e)
         }
     }
 
-    private fun parseGeminiResponse(response: String, sourceUrl: String): Recipe {
-        return try {
-            val gson = com.google.gson.Gson()
-            val geminiResponse = gson.fromJson(response, GeminiResponse::class.java)
-            val text = geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
-            val cleanJson = text.replace("```json", "").replace("```", "").trim()
-
-            val extracted = gson.fromJson(cleanJson, ExtractedRecipe::class.java)
-
-            Recipe(
-                id = 0,
-                title = extracted.title ?: "Untitled Recipe",
-                description = extracted.description ?: "",
-                servings = extracted.servings ?: 4,
-                prepTimeMinutes = extracted.prepTimeMinutes ?: 0,
-                cookTimeMinutes = extracted.cookTimeMinutes ?: 0,
-                sourceUrl = sourceUrl,
-                sourceType = extracted.sourceType ?: "VIDEO",
-                thumbnailUrl = null,
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis(),
-                isFavorite = false,
-                isSynced = false
-            ).also { recipe ->
-                recipe.ingredients = extracted.ingredients?.mapIndexed { index, ing ->
-                    Ingredient(
-                        id = index.toLong(),
-                        recipeId = 0,
-                        name = ing?.name ?: "",
-                        amount = ing?.amount,
-                        unit = ing?.unit ?: "",
-                        notes = ing?.notes ?: "",
-                        orderIndex = index
-                    )
-                } ?: emptyList()
-                recipe.steps = extracted.steps?.mapIndexed { index, step ->
-                    Step(
-                        id = index.toLong(),
-                        recipeId = 0,
-                        order = step?.order ?: (index + 1),
-                        instruction = step?.instruction ?: "",
-                        duration = step?.duration,
-                        imageUrl = null
-                    )
-                } ?: emptyList()
-            }
-        } catch (e: Exception) {
-            Recipe(
-                id = 0,
-                title = "Extracted Recipe",
-                description = "Recipe extracted from video",
-                servings = 4,
-                prepTimeMinutes = 0,
-                cookTimeMinutes = 0,
-                sourceUrl = sourceUrl,
-                sourceType = "VIDEO",
-                thumbnailUrl = null,
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis(),
-                isFavorite = false,
-                isSynced = false
-            )
-        }
-    }
-
-    companion object {
-        private val gson = com.google.gson.Gson()
-    }
 }
-
-data class GeminiResponse(
-    val candidates: List<GeminiCandidate>?
-)
-
-data class GeminiCandidate(
-    val content: GeminiContent
-)
-
-data class GeminiContent(
-    val parts: List<GeminiPart>
-)
-
-data class GeminiPart(
-    val text: String?
-)
