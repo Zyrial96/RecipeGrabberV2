@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.net.URI
 
 data class ProgressUpdate(
     val step: String,
@@ -42,9 +43,16 @@ class ExtractRecipeUseCase @Inject constructor(
     val progress: StateFlow<ProgressUpdate> = _progress.asStateFlow()
 
     suspend fun invokeWithProgress(videoUrl: String, useApify: Boolean = true): ExtractionResult {
+        val uri = try {
+            URI(videoUrl).also {
+                require(it.scheme.equals("https", ignoreCase = true) && !it.host.isNullOrBlank() && it.userInfo == null)
+            }
+        } catch (e: Exception) {
+            return ExtractionResult.Error("Bitte einen gueltigen HTTPS-Videolink ohne Zugangsdaten eingeben.")
+        }
         _progress.value = ProgressUpdate("detecting", "Erkenne Plattform...", 0.05f)
-        logger.i("ExtractRecipe", "Starting extraction for: $videoUrl")
-        val platform = detectPlatform(videoUrl)
+        logger.i("ExtractRecipe", "Starting video extraction")
+        val platform = detectPlatform(uri)
         val platformName = platform.name.lowercase().replaceFirstChar { it.uppercase() }
         logger.d("ExtractRecipe", "Detected platform: $platform")
         
@@ -104,19 +112,25 @@ class ExtractRecipeUseCase @Inject constructor(
             result.fold(
                 onSuccess = { extractedRecipe ->
                     require(extractedRecipe.title.isNotBlank() &&
+                        extractedRecipe.servings > 0 &&
+                        extractedRecipe.prepTimeMinutes >= 0 && extractedRecipe.cookTimeMinutes >= 0 &&
                         extractedRecipe.ingredients.isNotEmpty() &&
-                        extractedRecipe.ingredients.all { it.name.isNotBlank() } &&
+                        extractedRecipe.ingredients.all {
+                            it.name.isNotBlank() && (it.amount == null || (it.amount.isFinite() && it.amount >= 0))
+                        } &&
                         extractedRecipe.steps.isNotEmpty() &&
-                        extractedRecipe.steps.all { it.instruction.isNotBlank() }) {
+                        extractedRecipe.steps.all {
+                            it.instruction.isNotBlank() && (it.duration == null || it.duration >= 0)
+                        }) {
                         "Die KI hat kein vollstaendiges Rezept geliefert."
                     }
-                    val enhancedRecipe = if (description.isNotBlank() && extractedRecipe.description.isBlank()) {
-                        extractedRecipe.copy(description = description).also {
-                            it.ingredients = extractedRecipe.ingredients
-                            it.steps = extractedRecipe.steps
-                        }
-                    } else {
-                        extractedRecipe
+                    val enhancedRecipe = extractedRecipe.copy(
+                        sourceUrl = videoUrl,
+                        sourceType = "VIDEO",
+                        description = extractedRecipe.description.ifBlank { description }
+                    ).also {
+                        it.ingredients = extractedRecipe.ingredients
+                        it.steps = extractedRecipe.steps
                     }
                     
                     _progress.value = ProgressUpdate("saving", "Rezept wird gespeichert...", 0.9f)
@@ -148,7 +162,7 @@ class ExtractRecipeUseCase @Inject constructor(
 
     private suspend fun scrapeWithApify(url: String, apiKey: String): ScrapedVideoData? {
         return try {
-            val result = when (detectPlatform(url)) {
+            val result = when (detectPlatform(URI(url))) {
                 Platform.TIKTOK -> apifyService.scrapeTikTokVideo(url, apiKey)
                 Platform.INSTAGRAM -> apifyService.scrapeInstagramReel(url, apiKey)
                 else -> return null
@@ -162,15 +176,15 @@ class ExtractRecipeUseCase @Inject constructor(
         }
     }
 
-    private fun detectPlatform(url: String): Platform {
+    private fun detectPlatform(uri: URI): Platform {
+        val host = uri.host.orEmpty().lowercase(java.util.Locale.ROOT)
+        fun matches(domain: String) = host == domain || host.endsWith(".$domain")
         return when {
-            url.contains("tiktok.com", ignoreCase = true) -> Platform.TIKTOK
-            url.contains("instagram.com", ignoreCase = true) -> Platform.INSTAGRAM
-            url.contains("youtube.com", ignoreCase = true) || 
-            url.contains("youtu.be", ignoreCase = true) -> Platform.YOUTUBE
-            url.contains("facebook.com", ignoreCase = true) -> Platform.FACEBOOK
-            url.contains("twitter.com", ignoreCase = true) || 
-            url.contains("x.com", ignoreCase = true) -> Platform.TWITTER
+            matches("tiktok.com") -> Platform.TIKTOK
+            matches("instagram.com") -> Platform.INSTAGRAM
+            matches("youtube.com") || matches("youtu.be") -> Platform.YOUTUBE
+            matches("facebook.com") -> Platform.FACEBOOK
+            matches("twitter.com") || matches("x.com") -> Platform.TWITTER
             else -> Platform.UNKNOWN
         }
     }
