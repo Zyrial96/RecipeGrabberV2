@@ -187,10 +187,6 @@ class SettingsViewModel @Inject constructor(
         return googleDriveService.getSignInIntent(includeGenerativeLanguage = false)
     }
 
-    fun getGoogleAiSignInIntent(): Intent {
-        return googleDriveService.getSignInIntent(includeGenerativeLanguage = true)
-    }
-
     fun startGoogleAiAuthorization(onUserConsentRequired: (PendingIntent) -> Unit) {
         viewModelScope.launch {
             _message.value = null
@@ -242,28 +238,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun handleGoogleAiSignInResult(data: Intent?) {
-        viewModelScope.launch {
-            _message.value = null
-            try {
-                val result = googleDriveService.handleSignInResult(data)
-                result.fold(
-                    onSuccess = { email ->
-                        preferencesRepository.setGoogleAccountEmail(email)
-                        preferencesRepository.setGeminiOAuthAuthorized(true)
-                        preferencesRepository.setGeminiAuthMode(GeminiAuthMode.GOOGLE_OAUTH)
-                        _message.value = "Google OAuth enabled for Gemini"
-                    },
-                    onFailure = {
-                        _message.value = "Failed to authorize Google OAuth"
-                    }
-                )
-            } catch (e: Exception) {
-                _message.value = "Failed to authorize Google OAuth"
-            }
-        }
-    }
-
     fun handleGoogleAiAuthorizationResult(resultCode: Int, data: Intent?) {
         viewModelScope.launch {
             _message.value = null
@@ -295,10 +269,7 @@ class SettingsViewModel @Inject constructor(
             if (enabled) {
                 _message.value = "Please sign in using the Google Drive settings"
             } else {
-                googleDriveService.signOut()
                 preferencesRepository.setDriveSyncEnabled(false)
-                preferencesRepository.setGeminiOAuthAuthorized(false)
-                preferencesRepository.setGoogleAccountEmail("")
                 _message.value = "Google Drive sync disabled"
             }
         }

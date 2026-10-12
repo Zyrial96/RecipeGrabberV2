@@ -286,9 +286,7 @@ fun AiProviderSettings(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (uiState.googleAccountEmail.isNotEmpty()) {
-                            "Connected as ${uiState.googleAccountEmail}"
-                        } else if (uiState.geminiOAuthAuthorized) {
+                        text = if (uiState.geminiOAuthAuthorized) {
                             "Google OAuth is connected for Gemini."
                         } else {
                             "Connect a Google account to authorize Gemini without an API key."
@@ -299,7 +297,7 @@ fun AiProviderSettings(
                         onClick = onGoogleAiSignIn,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (uiState.geminiOAuthAuthorized || uiState.googleAccountEmail.isNotEmpty()) "Reconnect Google OAuth" else "Connect Google OAuth")
+                        Text(if (uiState.geminiOAuthAuthorized) "Reconnect Google OAuth" else "Connect Google OAuth")
                     }
                 }
             }

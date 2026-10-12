@@ -5,8 +5,10 @@ import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.apify.ApifyService
 import com.recipegrabber.data.remote.apify.ScrapedVideoData
 import com.recipegrabber.data.repository.PreferencesRepository
+import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.LlmProviderFactory
 import com.recipegrabber.domain.llm.ProviderType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,7 +78,10 @@ class ExtractRecipeUseCase @Inject constructor(
 
         val hasApiKey = when (providerType) {
             ProviderType.OPENAI -> preferencesRepository.openAiApiKey.first().isNotBlank()
-            ProviderType.GEMINI -> preferencesRepository.geminiApiKey.first().isNotBlank()
+            ProviderType.GEMINI -> when (preferencesRepository.geminiAuthMode.first()) {
+                GeminiAuthMode.API_KEY -> preferencesRepository.geminiApiKey.first().isNotBlank()
+                GeminiAuthMode.GOOGLE_OAUTH -> true
+            }
             ProviderType.CLAUDE -> preferencesRepository.claudeApiKey.first().isNotBlank()
             ProviderType.KIMI -> preferencesRepository.kimiApiKey.first().isNotBlank()
         }
@@ -98,8 +103,18 @@ class ExtractRecipeUseCase @Inject constructor(
             
             result.fold(
                 onSuccess = { extractedRecipe ->
+                    require(extractedRecipe.title.isNotBlank() &&
+                        extractedRecipe.ingredients.isNotEmpty() &&
+                        extractedRecipe.ingredients.all { it.name.isNotBlank() } &&
+                        extractedRecipe.steps.isNotEmpty() &&
+                        extractedRecipe.steps.all { it.instruction.isNotBlank() }) {
+                        "Die KI hat kein vollstaendiges Rezept geliefert."
+                    }
                     val enhancedRecipe = if (description.isNotBlank() && extractedRecipe.description.isBlank()) {
-                        extractedRecipe.copy(description = description)
+                        extractedRecipe.copy(description = description).also {
+                            it.ingredients = extractedRecipe.ingredients
+                            it.steps = extractedRecipe.steps
+                        }
                     } else {
                         extractedRecipe
                     }
@@ -108,13 +123,19 @@ class ExtractRecipeUseCase @Inject constructor(
                     val savedId = saveRecipeUseCase(enhancedRecipe)
                     logger.i("ExtractRecipe", "Recipe saved with ID: $savedId")
                     _progress.value = ProgressUpdate("done", "Fertig!", 1.0f)
-                    ExtractionResult.Success(enhancedRecipe.copy(id = savedId))
+                    ExtractionResult.Success(enhancedRecipe.copy(id = savedId).also {
+                        it.ingredients = enhancedRecipe.ingredients
+                        it.steps = enhancedRecipe.steps
+                    })
                 },
                 onFailure = { error ->
+                    if (error is CancellationException) throw error
                     logger.e("ExtractRecipe", "LLM extraction failed: ${error.message}", error)
                     ExtractionResult.Error(error.message ?: "Extraction failed")
                 }
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("ExtractRecipe", "Unexpected error", e)
             ExtractionResult.Error(e.message ?: "Unknown error")
@@ -133,6 +154,8 @@ class ExtractRecipeUseCase @Inject constructor(
                 else -> return null
             }
             result.getOrNull()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e("ExtractRecipe", "Apify scrape exception: ${e.message}", e)
             null
