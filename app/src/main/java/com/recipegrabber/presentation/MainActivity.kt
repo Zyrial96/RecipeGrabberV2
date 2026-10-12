@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -220,7 +221,9 @@ class MainActivity : ComponentActivity() {
     private fun registerClipboardReceiver() {
         if (clipboardReceiverRegistered) return
         val filter = IntentFilter(ClipboardMonitorService.ACTION_RECIPE_URL_DETECTED)
-        registerReceiver(clipboardReceiver, filter, RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(
+            this, clipboardReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         clipboardReceiverRegistered = true
     }
 
