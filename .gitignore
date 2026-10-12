@@ -19,7 +19,6 @@ local.properties
 # Google Services
 google-services.json
 
-# Gradle wrapper jars
-gradle/wrapper/gradle-wrapper.jar
+# Local Gradle downloads
 gradle-8.7/
 gradle.zip
