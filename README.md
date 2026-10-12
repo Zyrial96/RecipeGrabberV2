@@ -29,7 +29,7 @@ sdkmanager "platforms;android-35" "build-tools;34.0.0"
 
 Open the project root in Android Studio, or install app/build/outputs/apk/debug/app-debug.apk. The release task builds an unsigned, minified APK; it does not configure signing or publish a release.
 
-The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, lint and both builds on pushes and pull requests. Its artifacts contain test/lint reports, not live authorization results. Device UI tests are separate.
+The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, lint and both builds on pushes and pull requests. Its artifacts contain test/lint reports, not live authorization results. Room integration tests run separately on a device or emulator with `./gradlew connectedDebugAndroidTest`.
 
 ## Authentication
 
@@ -53,6 +53,7 @@ app/src/main/java/com/recipegrabber/
   presentation/       Compose screens and ViewModels
   service/            Clipboard foreground service
 app/src/test/          JUnit 5 / MockK tests
+app/src/androidTest/   Room integration tests with AndroidJUnitRunner
 .planning/codebase/    GSD map: historical snapshot, verify live source
 .planning/audits/      Audit evidence and verification limits
 ```
@@ -61,7 +62,7 @@ ExtractRecipeUseCase owns validation and saving. Both list entry and shared-vide
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, Drive backup/restore, Room integration coverage and broader device acceptance tests.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, Drive backup/restore, migration coverage and broader device acceptance tests.
 
 ## License
 

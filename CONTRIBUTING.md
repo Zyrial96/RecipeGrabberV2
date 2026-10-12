@@ -9,7 +9,7 @@ Before submitting changes:
 git diff --check
 ```
 
-Reports are in `app/build/reports/`. Release builds are unsigned. Device smoke tests are separate: there is currently no implemented instrumentation suite, so `connectedAndroidTest` alone is not acceptance evidence.
+Reports are in `app/build/reports/`. Release builds are unsigned. Run the Room integration suite with `./gradlew connectedDebugAndroidTest` on an authorized device/emulator. It verifies independent detail IDs, rollback on failed writes, favorites and cascading deletion using isolated in-memory databases, not the user's recipe database. Passing it is not proof of external API authorization or actual video extraction.
 
 ## Architecture And Scope
 

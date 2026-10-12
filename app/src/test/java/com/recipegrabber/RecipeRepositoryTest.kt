@@ -108,24 +108,26 @@ class RecipeRepositoryTest {
     }
 
     @Test
-    fun `new recipe details ignore provider ids and do not mutate inputs`() = runTest {
+    fun `new recipe delegates the complete aggregate to a single dao operation`() = runTest {
         val ingredient = Ingredient(id = 9, recipeId = 100, name = "Wasser")
         val step = Step(id = 9, recipeId = 100, order = 1, instruction = "Kochen")
-        coEvery { recipeDao.insertRecipe(any()) } returns 42L
+        coEvery { recipeDao.insertRecipeWithDetails(any(), any(), any()) } returns 42L
         assertEquals(42L, repository.insertRecipeWithDetails(testRecipe, listOf(ingredient), listOf(step)))
-        coVerify { ingredientDao.insertIngredients(listOf(ingredient.copy(id = 0, recipeId = 42))) }
-        coVerify { stepDao.insertSteps(listOf(step.copy(id = 0, recipeId = 42))) }
+        coVerify { recipeDao.insertRecipeWithDetails(testRecipe, listOf(ingredient), listOf(step)) }
+        coVerify(exactly = 0) { ingredientDao.insertIngredients(any()) }
+        coVerify(exactly = 0) { stepDao.insertSteps(any()) }
         assertEquals(9L, ingredient.id)
         assertEquals(100L, step.recipeId)
     }
 
     @Test
-    fun `replaced details allocate fresh ids rather than overwriting another recipe`() = runTest {
+    fun `replacing details delegates a single transactional dao operation`() = runTest {
         val ingredient = Ingredient(id = 9, recipeId = 100, name = "Wasser")
         val step = Step(id = 9, recipeId = 100, order = 1, instruction = "Kochen")
         repository.updateRecipeWithDetails(testRecipe, listOf(ingredient), listOf(step))
-        coVerify { ingredientDao.insertIngredients(listOf(ingredient.copy(id = 0, recipeId = testRecipe.id))) }
-        coVerify { stepDao.insertSteps(listOf(step.copy(id = 0, recipeId = testRecipe.id))) }
+        coVerify { recipeDao.updateRecipeWithDetails(testRecipe, listOf(ingredient), listOf(step)) }
+        coVerify(exactly = 0) { ingredientDao.deleteIngredientsForRecipe(any()) }
+        coVerify(exactly = 0) { stepDao.deleteStepsForRecipe(any()) }
     }
 
     @Nested
@@ -149,7 +151,7 @@ class RecipeRepositoryTest {
                 emptyList()
             )
 
-            coVerify { ingredientDao.insertIngredients(any()) }
+            coVerify { recipeDao.insertRecipeWithDetails(testRecipe, ingredients, emptyList()) }
         }
     }
 
@@ -174,7 +176,7 @@ class RecipeRepositoryTest {
                 steps
             )
 
-            coVerify { stepDao.insertSteps(any()) }
+            coVerify { recipeDao.insertRecipeWithDetails(testRecipe, emptyList(), steps) }
         }
     }
 }

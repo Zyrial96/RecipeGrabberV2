@@ -9,6 +9,8 @@ import androidx.room.Transaction
 import androidx.room.Update
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.RecipeWithDetails
+import com.recipegrabber.data.local.entity.Ingredient
+import com.recipegrabber.data.local.entity.Step
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -42,6 +44,35 @@ interface RecipeDao {
 
     @Update
     suspend fun updateRecipe(recipe: Recipe)
+
+    @Insert
+    suspend fun insertIngredients(ingredients: List<Ingredient>)
+
+    @Insert
+    suspend fun insertSteps(steps: List<Step>)
+
+    @Query("DELETE FROM ingredients WHERE recipeId = :recipeId")
+    suspend fun deleteIngredients(recipeId: Long)
+
+    @Query("DELETE FROM steps WHERE recipeId = :recipeId")
+    suspend fun deleteSteps(recipeId: Long)
+
+    @Transaction
+    suspend fun insertRecipeWithDetails(recipe: Recipe, ingredients: List<Ingredient>, steps: List<Step>): Long {
+        val id = insertRecipe(recipe)
+        insertIngredients(ingredients.map { it.copy(id = 0, recipeId = id) })
+        insertSteps(steps.map { it.copy(id = 0, recipeId = id) })
+        return id
+    }
+
+    @Transaction
+    suspend fun updateRecipeWithDetails(recipe: Recipe, ingredients: List<Ingredient>, steps: List<Step>) {
+        updateRecipe(recipe)
+        deleteIngredients(recipe.id)
+        deleteSteps(recipe.id)
+        insertIngredients(ingredients.map { it.copy(id = 0, recipeId = recipe.id) })
+        insertSteps(steps.map { it.copy(id = 0, recipeId = recipe.id) })
+    }
 
     @Delete
     suspend fun deleteRecipe(recipe: Recipe)

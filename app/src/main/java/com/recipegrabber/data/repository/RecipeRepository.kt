@@ -35,22 +35,13 @@ class RecipeRepository @Inject constructor(
     suspend fun insertRecipe(recipe: Recipe): Long = recipeDao.insertRecipe(recipe)
 
     suspend fun insertRecipeWithDetails(recipe: Recipe, ingredients: List<Ingredient>, steps: List<Step>): Long {
-        val recipeId = recipeDao.insertRecipe(recipe)
-        val ingredientsWithRecipeId = ingredients.map { it.copy(id = 0, recipeId = recipeId) }
-        val stepsWithRecipeId = steps.map { it.copy(id = 0, recipeId = recipeId) }
-        ingredientDao.insertIngredients(ingredientsWithRecipeId)
-        stepDao.insertSteps(stepsWithRecipeId)
-        return recipeId
+        return recipeDao.insertRecipeWithDetails(recipe, ingredients, steps)
     }
 
     suspend fun updateRecipe(recipe: Recipe) = recipeDao.updateRecipe(recipe)
 
     suspend fun updateRecipeWithDetails(recipe: Recipe, ingredients: List<Ingredient>, steps: List<Step>) {
-        recipeDao.updateRecipe(recipe)
-        ingredientDao.deleteIngredientsForRecipe(recipe.id)
-        stepDao.deleteStepsForRecipe(recipe.id)
-        ingredientDao.insertIngredients(ingredients.map { it.copy(id = 0, recipeId = recipe.id) })
-        stepDao.insertSteps(steps.map { it.copy(id = 0, recipeId = recipe.id) })
+        recipeDao.updateRecipeWithDetails(recipe, ingredients, steps)
     }
 
     suspend fun deleteRecipe(recipe: Recipe) = recipeDao.deleteRecipe(recipe)
