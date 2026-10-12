@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 data class RecipeDetailUiState(
@@ -37,6 +38,7 @@ class RecipeDetailViewModel @Inject constructor(
     private val recipeId: Long = checkNotNull(savedStateHandle["recipeId"])
     private val _targetServings = MutableStateFlow<Int?>(null)
     private val _error = MutableStateFlow<String?>(null)
+    private var deletionInProgress = false
 
     val uiState: StateFlow<RecipeDetailUiState> = combine(
         recipeRepository.getRecipeWithDetails(recipeId),
@@ -83,6 +85,8 @@ class RecipeDetailViewModel @Inject constructor(
                 try {
                     recipeRepository.toggleFavorite(recipe.id, !recipe.isFavorite)
                     logger.i("RecipeDetail", "Toggled favorite for recipe: ${recipe.title}")
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e("RecipeDetail", "Failed to toggle favorite", e)
                     _error.value = e.message
@@ -91,16 +95,23 @@ class RecipeDetailViewModel @Inject constructor(
         }
     }
 
-    fun deleteRecipe() {
+    fun deleteRecipe(onDeleted: () -> Unit = {}) {
+        if (deletionInProgress) return
+        deletionInProgress = true
         viewModelScope.launch {
             try {
                 uiState.value.recipe?.recipe?.let { recipe ->
                     recipeRepository.deleteRecipe(recipe)
                     logger.i("RecipeDetail", "Deleted recipe: ${recipe.title}")
+                    onDeleted()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e("RecipeDetail", "Failed to delete recipe", e)
                 _error.value = e.message
+            } finally {
+                deletionInProgress = false
             }
         }
     }

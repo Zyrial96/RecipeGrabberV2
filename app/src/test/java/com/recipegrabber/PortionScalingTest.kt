@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
@@ -81,5 +82,28 @@ class PortionScalingTest {
         assertEquals("1,5", formatIngredientAmount(1.5, Locale.GERMANY))
         assertEquals("1000,25", formatIngredientAmount(1000.25, Locale.GERMANY))
         assertEquals("1.5", formatIngredientAmount(1.5, Locale.US))
+    }
+
+    @Test fun `delete navigation waits for successful persistence`() = runTest {
+        val model = model(4)
+        val deleted = CompletableDeferred<Unit>()
+        coEvery { repository.deleteRecipe(any()) } coAnswers { deleted.await() }
+        var navigated = false
+        model.deleteRecipe { navigated = true }
+        runCurrent()
+        assertFalse(navigated)
+        deleted.complete(Unit)
+        runCurrent()
+        assertTrue(navigated)
+    }
+
+    @Test fun `failed delete keeps the user on the recipe`() = runTest {
+        val model = model(4)
+        coEvery { repository.deleteRecipe(any()) } throws IllegalStateException("Write failed")
+        var navigated = false
+        model.deleteRecipe { navigated = true }
+        runCurrent()
+        assertFalse(navigated)
+        assertEquals("Write failed", model.uiState.value.error)
     }
 }

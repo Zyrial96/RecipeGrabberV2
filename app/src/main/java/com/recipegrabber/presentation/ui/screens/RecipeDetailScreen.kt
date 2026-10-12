@@ -43,6 +43,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,8 +67,17 @@ fun RecipeDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(uiState.recipe?.recipe?.title ?: "Rezept") },
@@ -185,9 +198,8 @@ fun RecipeDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteRecipe()
+                        viewModel.deleteRecipe(onNavigateBack)
                         showDeleteDialog = false
-                        onNavigateBack()
                     }
                 ) {
                     Text("Löschen")
@@ -253,7 +265,7 @@ fun RecipeHeader(
                     Text(
                         text = "$scaledServings",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp).testTag("servings-value")
                     )
 
                     FilledIconButton(
