@@ -27,14 +27,14 @@ class GeminiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            logger.i("Gemini", "Starting extraction for URL: $videoUrl")
+            logger.i("Gemini", "Starting video extraction")
             val modelId = preferencesRepository.llmModel.first()
             val model = if (modelId.isNotBlank() && modelId.startsWith("gemini")) {
                 modelId
             } else {
                 "gemini-2.5-flash"
             }
-            logger.i("Gemini", "Using model: $model, URL: https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
+            logger.i("Gemini", "Using model: $model")
 
             val prompt = """Du bist ein Rezept-Extraktor. Analysiere das Video unter dieser URL und extrahiere NUR das Rezept, das im Video tatsächlich zubereitet wird. Erfinde keine Rezepte!
 
