@@ -36,8 +36,8 @@ class RecipeRepository @Inject constructor(
 
     suspend fun insertRecipeWithDetails(recipe: Recipe, ingredients: List<Ingredient>, steps: List<Step>): Long {
         val recipeId = recipeDao.insertRecipe(recipe)
-        val ingredientsWithRecipeId = ingredients.map { it.copy(recipeId = recipeId) }
-        val stepsWithRecipeId = steps.map { it.copy(recipeId = recipeId) }
+        val ingredientsWithRecipeId = ingredients.map { it.copy(id = 0, recipeId = recipeId) }
+        val stepsWithRecipeId = steps.map { it.copy(id = 0, recipeId = recipeId) }
         ingredientDao.insertIngredients(ingredientsWithRecipeId)
         stepDao.insertSteps(stepsWithRecipeId)
         return recipeId
@@ -49,8 +49,8 @@ class RecipeRepository @Inject constructor(
         recipeDao.updateRecipe(recipe)
         ingredientDao.deleteIngredientsForRecipe(recipe.id)
         stepDao.deleteStepsForRecipe(recipe.id)
-        ingredientDao.insertIngredients(ingredients.map { it.copy(recipeId = recipe.id) })
-        stepDao.insertSteps(steps.map { it.copy(recipeId = recipe.id) })
+        ingredientDao.insertIngredients(ingredients.map { it.copy(id = 0, recipeId = recipe.id) })
+        stepDao.insertSteps(steps.map { it.copy(id = 0, recipeId = recipe.id) })
     }
 
     suspend fun deleteRecipe(recipe: Recipe) = recipeDao.deleteRecipe(recipe)
