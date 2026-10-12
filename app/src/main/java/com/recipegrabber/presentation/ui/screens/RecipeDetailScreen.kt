@@ -359,7 +359,7 @@ fun IngredientItem(
         Text(
             text = buildString {
                 if (scaledAmount != null && scaledAmount > 0) {
-                    append(formatAmount(scaledAmount))
+                    append(com.recipegrabber.presentation.util.formatIngredientAmount(scaledAmount))
                     if (ingredient.unit.isNotBlank()) {
                         append(" ${ingredient.unit}")
                     }
@@ -425,10 +425,3 @@ fun StepItem(step: Step, stepNumber: Int) {
     }
 }
 
-private fun formatAmount(amount: Double): String {
-    return if (amount == amount.toLong().toDouble()) {
-        amount.toLong().toString()
-    } else {
-        String.format("%.2f", amount).trimEnd('0').trimEnd('.')
-    }
-}
