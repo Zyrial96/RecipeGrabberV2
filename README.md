@@ -1,148 +1,68 @@
-# Recipe Grabber V2
+# RecipeGrabberV2
 
-A modern Android application for extracting and managing recipes from video content using AI-powered LLM providers.
+Native Kotlin Android app for turning cooking videos into structured recipes, storing them locally, and adjusting portions. This is an early-stage public project, not a production-ready service. Download and user numbers have not been verified.
 
-## Features
+## Current Capabilities
 
-- **AI-Powered Recipe Extraction**: Automatically extract recipes from YouTube, TikTok, Instagram, and other video platforms
-- **Multiple LLM Providers**: Support for OpenAI GPT-4 and Google Gemini
-- **Google Drive Sync**: Backup and sync your recipes across devices
-- **Clipboard Monitoring**: Automatically detect video URLs in your clipboard
-- **Portion Scaling**: Easily scale recipes for different serving sizes
-- **Dark Mode First**: Beautiful dark theme as default with light mode option
-- **Offline Support**: Full offline capability with local Room database
+| Area | Implementation and limits |
+| --- | --- |
+| Local recipes | Room storage, search, favorites, sharing and portion scaling. Saved recipes are readable offline; extraction needs network access. |
+| Gemini video input | Public YouTube URLs or HTTPS MP4/WebM/MOV URLs are attached as fileData, not just included in a prompt. Request/parsing tests use fixtures. Live extraction requires valid credentials, model access and an accessible video. |
+| TikTok / Instagram | Optional Apify scrapers attempt to obtain direct media URLs. Platform pages are not video files. Scraper reliability and returned CDN URL compatibility are not verified end to end. |
+| Other AI adapters | OpenAI, Claude and Kimi adapters exist, but send URL text instead of actual video content. Their output is not verified video extraction. |
+| Google OAuth | Gemini has an AuthorizationClient consent flow. Google Cloud registration for the exact package/signing certificate is required. An account picker is not proof of API authorization. |
+| Google Drive | Authentication and file-operation helpers exist. Automatic recipe backup, a synchronization worker and restore workflows are not implemented. |
+| Clipboard | Foreground monitoring is subject to Android clipboard/background restrictions; reliable background detection on all devices is not established. Manual URL entry and Android sharing are available. |
 
-## Technical Stack
+Always compare an extracted recipe with its source. Structural validation cannot prove that a model extracted the actual ingredients, quantities or preparation correctly.
 
-| Component | Technology |
-|-----------|------------|
-| Language | Kotlin 2.0 |
-| Min SDK | 33 (Android 13) |
-| Target SDK | 35 |
-| UI | Jetpack Compose + Material 3 |
-| Architecture | Clean Architecture + MVVM |
-| DI | Hilt 2.51.1 |
-| Database | Room 2.6.1 |
-| Networking | Retrofit 2.11 + OkHttp 4.12 |
-| AI | OpenAI GPT-4 / Google Gemini |
-| Auth | Google Identity Services 1.1 |
-| Async | Kotlin Coroutines + Flow |
-| Testing | JUnit 5 + MockK |
+## Build And Test
 
-## Project Structure
+Use JDK 17, Android SDK platform 35 and build-tools 34.0.0. Supported devices run Android 12 / API 31 or newer. Use the checked-in Gradle 8.7 wrapper, not system Gradle or a newer JDK.
 
+```bash
+export JAVA_HOME=/path/to/jdk-17
+export ANDROID_HOME=/path/to/android-sdk
+sdkmanager "platforms;android-35" "build-tools;34.0.0"
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
+
+Open the project root in Android Studio, or install app/build/outputs/apk/debug/app-debug.apk. The release task builds an unsigned, minified APK; it does not configure signing or publish a release.
+
+The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, lint and both builds on pushes and pull requests. Its artifacts contain test/lint reports, not live authorization results. Device UI tests are separate.
+
+## Authentication
+
+Credentials are optional for browsing recipes and completing onboarding. For Gemini, configure an API key or Google OAuth in Settings. API use may incur provider charges.
+
+OAuth requires an enabled Generative Language API, configured consent screen and Android OAuth client matching package com.recipegrabber and the actual installed signing certificate's SHA-1. Use `./gradlew signingReport`; another developer's debug certificate is not interchangeable. Add authorized test users while the consent screen is in testing. A separate audit package needs its own registration.
+
+UNREGISTERED_ON_API_CONSOLE indicates a registration problem; model changes or retries do not fix it. Gemini authorization and Drive access are separate permissions.
+
+See Google's [Android authorization guide](https://developer.android.com/identity/authorization), [Gemini OAuth setup](https://ai.google.dev/gemini-api/docs/oauth) and [video input documentation](https://ai.google.dev/gemini-api/docs/video-understanding). Never commit API keys, tokens, keystores, personal account details or full device logs. App preferences contain sensitive credentials.
+
+## Code Map
+
+```text
 app/src/main/java/com/recipegrabber/
-├── di/                     # Hilt dependency injection modules
-├── domain/llm/             # LLM provider interfaces and implementations
-│   ├── LlmProvider.kt       # Core interface
-│   ├── OpenAiProvider.kt   # OpenAI implementation
-│   ├── GeminiProvider.kt   # Gemini implementation
-│   └── LlmProviderFactory.kt
-├── data/
-│   ├── local/              # Room database layer
-│   │   ├── entity/         # Database entities
-│   │   ├── dao/            # Data access objects
-│   │   └── RecipeDatabase.kt
-│   ├── repository/         # Repository implementations
-│   └── remote/            # Google Drive service
-├── presentation/
-│   ├── MainActivity.kt
-│   ├── ui/
-│   │   ├── screens/       # Compose UI screens
-│   │   ├── components/    # Reusable UI components
-│   │   └── theme/         # Material 3 theming
-│   └── viewmodel/         # ViewModels with StateFlow
-└── service/               # Foreground services
-    └── ClipboardMonitorService.kt
+  data/local/          Room entities, DAOs and database
+  data/repository/     Persistence and DataStore preferences
+  data/remote/         Google authorization/Drive and Apify
+  domain/llm/          Adapters, request builders and parsers
+  domain/usecase/      Validated extraction and saving
+  presentation/       Compose screens and ViewModels
+  service/            Clipboard foreground service
+app/src/test/          JUnit 5 / MockK tests
+.planning/codebase/    GSD map: historical snapshot, verify live source
+.planning/audits/      Audit evidence and verification limits
 ```
 
-## Setup
-
-### Prerequisites
-
-- Android Studio Hedgehog or later
-- JDK 17
-- Android SDK with API 33+
-
-### Configuration
-
-1. **OpenAI API Key** (optional for OpenAI provider):
-   - Get your key from [OpenAI Platform](https://platform.openai.com/api-keys)
-   - Enter in Settings > OpenAI API Key
-
-2. **Gemini API Key** (optional for Gemini provider):
-   - Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - Enter in Settings > Gemini API Key
-
-3. **Google Drive Sync** (optional):
-   - Enable in Settings to backup recipes to your Google Drive
-
-### Build
-
-```bash
-./gradlew assembleDebug    # Debug build
-./gradlew assembleRelease # Release build
-```
-
-### Test
-
-```bash
-./gradlew test             # Run unit tests
-./gradlew connectedAndroidTest  # Run instrumentation tests
-```
-
-## Usage
-
-### Extract a Recipe
-
-1. Tap the **+** FAB button on the main screen
-2. Paste a video URL (YouTube, TikTok, etc.)
-3. Tap **Extract** and wait for AI processing
-4. View your extracted recipe with ingredients and steps
-
-### Scale Portions
-
-1. Open any recipe
-2. Use the **+/-** buttons to adjust servings
-3. All ingredient amounts automatically scale
-
-### Auto-Extract from Clipboard
-
-1. Enable **Clipboard Monitor** in Settings
-2. Copy any recipe video URL
-3. The app will automatically detect and offer to extract
-
-### Sync to Google Drive
-
-1. Enable **Drive Sync** in Settings
-2. Sign in with your Google account
-3. Recipes automatically backup to your private Drive folder
-
-## Architecture
-
-The app follows **Clean Architecture** with three layers:
-
-- **Domain Layer**: Business logic and use cases (LLM providers)
-- **Data Layer**: Repositories, Room database, DataStore preferences
-- **Presentation Layer**: Compose UI with MVVM pattern
-
-### State Management
-
-- `StateFlow` for UI state
-- `Flow` for reactive data streams from Room
-- `DataStore` for user preferences
-
-### Testing Strategy
-
-- **Unit Tests**: JUnit 5 with MockK for repositories and providers
-- **UI Tests**: Compose testing with `createComposeRule`
-- **Integration Tests**: Room database with `Room.inMemoryDatabaseBuilder`
-
-## License
-
-MIT License - See LICENSE file for details
+ExtractRecipeUseCase owns validation and saving. Both list entry and shared-video entry use it; providers must return ingredients and steps, not turn parser errors into placeholder successes.
 
 ## Contributing
 
-Contributions welcome! Please read CONTRIBUTING.md for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, Drive backup/restore, Room integration coverage and broader device acceptance tests.
+
+## License
+
+[MIT](LICENSE).

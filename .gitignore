@@ -4,6 +4,8 @@ build/
 
 # Local configuration
 local.properties
+.env
+.env.*
 
 # IDE
 .idea/
