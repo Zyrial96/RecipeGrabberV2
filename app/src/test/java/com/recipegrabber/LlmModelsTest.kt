@@ -1,0 +1,38 @@
+package com.recipegrabber
+
+import com.recipegrabber.domain.llm.LlmModels
+import com.recipegrabber.domain.llm.ProviderType
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class LlmModelsTest {
+    @Test
+    fun `catalog IDs are unique`() {
+        val ids = LlmModels.ALL_MODELS.map { it.id }
+        assertEquals(ids.size, ids.distinct().size)
+    }
+
+    @Test
+    fun `Gemini defaults to current stable video model`() {
+        val model = LlmModels.getDefaultModelForProvider(ProviderType.GEMINI)
+        assertEquals("gemini-3.8-flash", model.id)
+        assertTrue(model.isVisionCapable)
+        assertEquals(1048576, model.contextWindow)
+    }
+
+    @Test
+    fun `existing Gemini selection remains resolvable`() {
+        val model = LlmModels.getModelById("gemini-2.5-flash")
+        assertNotNull(model)
+        assertEquals(ProviderType.GEMINI, model?.provider)
+    }
+
+    @Test
+    fun `every provider default belongs to its selectable catalog`() {
+        for (provider in ProviderType.entries) {
+            assertTrue(LlmModels.getModelsForProvider(provider).contains(LlmModels.getDefaultModelForProvider(provider)))
+        }
+    }
+}

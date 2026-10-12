@@ -30,19 +30,19 @@ object LlmModels {
     )
     
     // Google Models
-    val GEMINI_15_PRO = LlmModel(
-        id = "gemini-2.5-flash",
-        name = "Gemini 2.5 Flash",
-        description = "Neuestes und schnellstes Modell",
+    val GEMINI_38_FLASH = LlmModel(
+        id = "gemini-3.8-flash",
+        name = "Gemini 3.8 Flash",
+        description = "Text- und Videoanalyse",
         provider = ProviderType.GEMINI,
         isVisionCapable = true,
-        contextWindow = 1000000
+        contextWindow = 1048576
     )
     
-    val GEMINI_15_FLASH = LlmModel(
+    val GEMINI_25_FLASH = LlmModel(
         id = "gemini-2.5-flash",
         name = "Gemini 2.5 Flash",
-        description = "Schnell und kostengünstig",
+        description = "Fuer bestehende Projekte mit Modellzugriff",
         provider = ProviderType.GEMINI,
         isVisionCapable = true,
         contextWindow = 1000000
@@ -79,7 +79,7 @@ object LlmModels {
     
     val ALL_MODELS = listOf(
         GPT_4O, GPT_4O_MINI,
-        GEMINI_15_PRO, GEMINI_15_FLASH,
+        GEMINI_38_FLASH, GEMINI_25_FLASH,
         CLAUDE_35_SONNET, CLAUDE_3_HAIKU,
         KIMI_K2_5
     )
@@ -95,7 +95,7 @@ object LlmModels {
     fun getDefaultModelForProvider(provider: ProviderType): LlmModel {
         return when (provider) {
             ProviderType.OPENAI -> GPT_4O
-            ProviderType.GEMINI -> GEMINI_15_PRO
+            ProviderType.GEMINI -> GEMINI_38_FLASH
             ProviderType.CLAUDE -> CLAUDE_35_SONNET
             ProviderType.KIMI -> KIMI_K2_5
         }

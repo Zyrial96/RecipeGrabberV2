@@ -32,7 +32,7 @@ class GeminiProvider @Inject constructor(
             val model = if (modelId.isNotBlank() && modelId.startsWith("gemini")) {
                 modelId
             } else {
-                "gemini-2.5-flash"
+                LlmModels.getDefaultModelForProvider(ProviderType.GEMINI).id
             }
             logger.i("Gemini", "Using model: $model")
 
