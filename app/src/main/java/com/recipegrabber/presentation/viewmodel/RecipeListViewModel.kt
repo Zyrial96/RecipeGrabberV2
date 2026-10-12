@@ -4,17 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.local.entity.RecipeWithDetails
-import com.recipegrabber.data.repository.PreferencesRepository
 import com.recipegrabber.data.repository.RecipeRepository
-import com.recipegrabber.domain.llm.LlmProviderFactory
-import com.recipegrabber.domain.llm.ProviderType
+import com.recipegrabber.domain.usecase.ExtractRecipeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,8 +34,7 @@ data class ExtractionState(
 @HiltViewModel
 class RecipeListViewModel @Inject constructor(
     private val recipeRepository: RecipeRepository,
-    private val preferencesRepository: PreferencesRepository,
-    private val llmProviderFactory: LlmProviderFactory
+    private val extractRecipeUseCase: ExtractRecipeUseCase
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -85,44 +82,40 @@ class RecipeListViewModel @Inject constructor(
             )
 
             try {
-                val providerType = preferencesRepository.llmProviderType.first()
-                val provider = llmProviderFactory.create(providerType)
-
                 _extractionState.value = ExtractionState(
                     isExtracting = true,
                     progress = 0.3f,
                     message = "Analyzing video content..."
                 )
 
-                val result = provider.extractRecipeFromVideo(url)
-
-                result.fold(
-                    onSuccess = { recipe ->
-                        _extractionState.value = ExtractionState(
-                            isExtracting = true,
-                            progress = 0.8f,
-                            message = "Saving recipe..."
-                        )
-
-                        val recipeId = recipeRepository.insertRecipeWithDetails(
-                            recipe.copy(sourceUrl = url),
-                            recipe.ingredients,
-                            recipe.steps
-                        )
-
+                val initialResult = extractRecipeUseCase(url)
+                val result = if (initialResult is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed) {
+                    extractRecipeUseCase.invokeDirect(url)
+                } else initialResult
+                when (result) {
+                    is ExtractRecipeUseCase.ExtractionResult.Success -> {
                         _extractionState.value = ExtractionState(
                             isExtracting = false,
                             progress = 1f,
                             message = "Recipe saved successfully!"
                         )
-                    },
-                    onFailure = { exception ->
+                    }
+                    else -> {
+                        val message = when (result) {
+                            is ExtractRecipeUseCase.ExtractionResult.Error -> result.message
+                            is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed -> result.message
+                            is ExtractRecipeUseCase.ExtractionResult.NoApiKey ->
+                                "Bitte konfiguriere deinen ${result.provider} API-Key in den Einstellungen"
+                            else -> "Failed to extract recipe"
+                        }
                         _extractionState.value = ExtractionState(
                             isExtracting = false,
-                            error = exception.message ?: "Failed to extract recipe"
+                            error = message
                         )
                     }
-                )
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _extractionState.value = ExtractionState(
                     isExtracting = false,
