@@ -2,6 +2,19 @@
 
 **Analysis Date:** 2026-04-30
 
+## Verified Updates - 2026-10-12
+
+The sections below preserve the original mapping snapshot, not a current open-issue list. These findings have since changed, verified against live source and tests:
+
+- `RecipeDao` aggregate inserts/updates now use Room transactions. Device tests prove insert/update rollback and independent child IDs.
+- List and extraction ViewModels both delegate to `ExtractRecipeUseCase`; scraping fallback uses `invokeDirect`, not the same scraping path again.
+- The shared extraction boundary validates HTTPS URLs without embedded credentials, uses parsed hosts for platform detection, rejects invalid numeric recipe data, and retains the original source URL after CDN scraping. Regressions passed at `c29b1d2`.
+- Gemini uses `x-goog-api-key`, actual video fileData, and strict response parsing. Empty output is rejected before persistence. Other providers still lack native video ingestion.
+- JDK 17 builds, 54 unit tests, lint and minified release build passed locally. Room/Compose instrumentation passed all eight tests on the Mi 11. CI includes API 31/35 emulator jobs; the verified earlier run is linked in the device audit.
+- Google OAuth still fails with status 8 / `UNREGISTERED_ON_API_CONSOLE` on the installed build. The required API is enabled, but Android client registration remains unresolved. Drive backup/restore is not implemented.
+
+See `.planning/audits/2026-10-12-mi11-verification.md` for build hashes, evidence and remaining external prerequisites. Migration coverage, provider ingestion and broader lifecycle/privacy concerns still require separate verification.
+
 ## Tech Debt
 
 **Duplicated LLM provider pipeline:**

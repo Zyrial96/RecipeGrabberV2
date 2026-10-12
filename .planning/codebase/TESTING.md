@@ -2,6 +2,19 @@
 
 **Analysis Date:** 2026-04-30
 
+## Verified Updates - 2026-10-12
+
+The remainder is the original mapping snapshot. Current `app/build.gradle.kts` enables JUnit Platform and declares the AndroidJUnitRunner and Compose test dependencies; unused MockK Android was removed. JDK 17 is available at `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home` on the verified Mac.
+
+- `testDebugUnitTest`: 54 tests, no failures/errors, at code commit `c29b1d2`.
+- `lintDebug`, `assembleDebug` and minified `assembleRelease`: successful on that code.
+- `RecipePersistenceTest`: four in-memory Room tests covering independent recipe details, transaction rollback, favorites and cascading deletion.
+- `RecipeDetailScreenTest`: four Compose device tests covering localized portions, minimum servings, favorites and confirmed deletion/navigation. The synthetic detail screenshot is not live video extraction evidence.
+- Latest installed APK passed all eight instrumentation tests on Xiaomi Mi 11 / API 31. CI runs the same suite on API 31/35 emulators, after build checks.
+- `ExtractionAuthenticationTest` covers authentication/error/cancellation routing, rejected incomplete or numerically invalid output, source preservation after scraping, and host-based platform detection. No private credentials or paid live API calls are used.
+
+Run `./gradlew connectedDebugAndroidTest` on an authorized device/emulator. Check the device audit for exact APK hashes and independently verified hosted results. OAuth authorization and actual media extraction remain separate external acceptance tests.
+
 ## Test Framework
 
 **Runner:**
