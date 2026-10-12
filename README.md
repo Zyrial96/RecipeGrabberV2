@@ -35,6 +35,8 @@ The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, li
 
 Credentials are optional for browsing recipes and completing onboarding. For Gemini, configure an API key or Google OAuth in Settings. API use may incur provider charges.
 
+New Gemini selections default to Gemini 3.8 Flash. Existing Gemini 2.5 Flash selections remain available, but Google limits 2.5 access to previous users; see the [model availability notice](https://ai.google.dev/gemini-api/docs/deprecations). Model selection does not fix missing OAuth registration or prove successful video extraction.
+
 OAuth requires an enabled Generative Language API, configured consent screen and Android OAuth client matching package com.recipegrabber and the actual installed signing certificate's SHA-1. Use `./gradlew signingReport`; another developer's debug certificate is not interchangeable. Add authorized test users while the consent screen is in testing. A separate audit package needs its own registration.
 
 UNREGISTERED_ON_API_CONSOLE indicates a registration problem; model changes or retries do not fix it. Gemini authorization and Drive access are separate permissions.
