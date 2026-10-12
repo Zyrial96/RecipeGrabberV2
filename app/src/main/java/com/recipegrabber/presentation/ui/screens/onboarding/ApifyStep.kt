@@ -103,6 +103,10 @@ fun ApifyStep(
                     Text("Weiter")
                 }
 
+                TextButton(onClick = onNext) {
+                    Text("Später einrichten")
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
