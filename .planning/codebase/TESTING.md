@@ -35,6 +35,7 @@ analysis_date: 2026-10-13
 - At production checkpoint `8324c13`, the Mi 11 suite passed ten core tests and skipped three opt-in probes in 9.203 seconds (`/tmp/recipegrabber-final-device-tests.txt`). VideoInputTest covers native payload construction, not remote media retrieval.
 - After updating the opt-in probe, the installed test APK's default suite again passed ten tests and skipped three in 8.918 seconds (`/tmp/recipegrabber-current-device-tests.txt`).
 - After the Files uploader changes, the Mi 11 default suite passed ten tests and skipped three in 8.876 seconds (`/tmp/recipegrabber-files-device-tests.txt`). Full local lint/debug/test/release build succeeded. The earlier published checkpoint `bffe751` is also fully green in hosted run 38381879227; the new uploader is not covered by that historical CI result.
+- Hosted run [38385620263](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38385620263) at `9b875e3` is now fully green for build and API 31/35 instrumentation, including the uploader and its tests. Default external probes remain skipped; hosted success does not establish positive remote-file acceptance.
 - A separately selected live WebM diagnostic failed with HTTP 400 / `INVALID_ARGUMENT` and `URL_UNREACHABLE-UNREACHABLE_5xx`. This is external failure evidence, not a default-suite failure or successful media acceptance. The probe can select `probeModel` and `probeVideoUrl` explicitly; flags remain disabled in CI.
 
 ## Test File Organization

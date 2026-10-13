@@ -32,7 +32,7 @@
 | Thorough current code map and actionable concerns | Seven refreshed `.planning/codebase/` documents with source checkpoint and concrete paths | Verified |
 | Central persistence/input/lifecycle regressions fixed | Current source, 88 JVM tests, native Room/Compose/input tests | Verified for described changes; broader lifecycle/migration gaps documented |
 | Reproducible local build/test/release commands | JDK 17 wrapper build and reports | Verified locally |
-| CI on supported minimum/current APIs | Workflow includes API 31/35; earlier hosted green runs are in OAuth audit | Latest source/metadata run still needs terminal hosted verification |
+| CI on supported minimum/current APIs | Hosted run 38385620263 at 9b875e3 completed successfully for build and API 31/35 | Verified for the source checkpoint; no live authorization/inference runs in CI |
 | Google OAuth and real YouTube extraction/persistence/scaling | Positive Mi 11 acceptance in `2026-10-13-google-oauth-registration.md` | Verified for one public video and Flash-Lite |
 | Supported direct-file extraction and error paths | Native payload/rejection tests plus actual ACTION_SEND/HTTP-400 failure | Entry/error handling verified; positive remote-file extraction remains open |
 | Honest README and contributor instructions | Current README/CONTRIBUTING with external prerequisites, tests, limitations and no invented metrics | Verified |

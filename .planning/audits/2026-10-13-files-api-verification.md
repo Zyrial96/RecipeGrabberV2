@@ -14,6 +14,7 @@
 - Mi 11 / Android 12 / API 31 default suite: ten tests passed, three external probes skipped, 8.876 seconds (`/tmp/recipegrabber-files-device-tests.txt`).
 - Installed final main APK SHA-256 `0a4c889b2dd5f62a38c728423dc39c958dd0c0ae191098f008b2d1c8eeaae800` matched the build, without clearing user data. Existing test APK SHA-256 `3e7ce5b30c18717d2834d7146cc5fe5e89088de4598bdccfa2718a67e8fdf6ae` was unchanged.
 - [Hosted run 38381879227](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38381879227) at the preceding `bffe751` checkpoint completed successfully for build and API 31/35 emulator jobs. This is not hosted verification of the newer uploader commits.
+- [Hosted run 38385620263](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38385620263) at `9b875e352c0ef49f1a3a984bee55c461d04c268c` subsequently completed successfully for all three jobs: build, instrumentation (31), and instrumentation (35). This covers the newer uploader, User-Agent correction and structured scope diagnostics. It does not enable live generation or grant the pending upload scope.
 
 ## Real Source And Permission Checks
 
