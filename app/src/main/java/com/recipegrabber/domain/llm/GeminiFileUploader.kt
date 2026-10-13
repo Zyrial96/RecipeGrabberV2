@@ -19,6 +19,7 @@ import java.io.File
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import java.util.Base64
 
 internal class GeminiFileUploader(
     private val downloads: Call.Factory,
@@ -28,8 +29,13 @@ internal class GeminiFileUploader(
     private val maxBytes: Long = 100L * 1024 * 1024,
     private val preparationTimeoutMillis: Long = 180_000,
     private val pollMillis: Long = 2_000,
-    private val cleanupApi: Call.Factory = api
+    private val cleanupApi: Call.Factory = api,
+    private val inlineLimitBytes: Long = 8L * 1024 * 1024
 ) {
+    init {
+        require(inlineLimitBytes in 0..8L * 1024 * 1024) { "Inline video limit exceeds the mobile memory budget." }
+    }
+
     suspend fun <T> withVideoBody(source: String, prompt: String, auth: GeminiRequestAuth, consume: suspend (String) -> T): T {
         val body = JsonParser.parseString(GeminiRequestFactory.buildVideoBody(source, prompt)).asJsonObject
         val media = body.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")[0].asJsonObject.getAsJsonObject("fileData")
@@ -39,6 +45,15 @@ internal class GeminiFileUploader(
         try {
             withTimeout(preparationTimeoutMillis) {
                 download(source.toHttpUrl(), temporary)
+                if (temporary.length() <= inlineLimitBytes) {
+                    val inline = JsonObject().apply {
+                        addProperty("mimeType", mime)
+                        addProperty("data", Base64.getEncoder().encodeToString(temporary.readBytes()))
+                    }
+                    body.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")
+                        .set(0, JsonObject().apply { add("inlineData", inline) })
+                    return@withTimeout
+                }
                 val metadata = """{"file":{"display_name":"RecipeGrabber video"}}"""
                 val start = authorized(Request.Builder().url(apiRoot.resolve("upload/v1beta/files")!!), auth)
                     .header("X-Goog-Upload-Protocol", "resumable")

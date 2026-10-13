@@ -34,6 +34,10 @@ class GeminiFileUploaderTest {
     private val source = "https://cdn.example/recipe.webm"
     private val auth = GeminiRequestAuth.OAuth("synthetic-token")
     private val uri = "https://generativelanguage.googleapis.com/v1beta/files/test-file"
+    private fun uploadOnly(downloads: Call.Factory, api: Call.Factory, cache: File, maxBytes: Long = 100L * 1024 * 1024,
+        preparationTimeoutMillis: Long = 180_000, pollMillis: Long = 2_000) =
+        GeminiFileUploader(downloads, api, cache, maxBytes = maxBytes, preparationTimeoutMillis = preparationTimeoutMillis,
+            pollMillis = pollMillis, inlineLimitBytes = 0)
     private fun dnsFor(address: InetAddress) = object : Dns {
         override fun lookup(hostname: String) = listOf(address)
     }
@@ -65,7 +69,7 @@ class GeminiFileUploaderTest {
     @Test fun `upload polling and cleanup preserve source prompt and isolate credentials`() = runTest {
         val downloads = Endpoint(Reply("video"))
         val api = api("PROCESSING")
-        GeminiFileUploader(downloads, api, cache, pollMillis = 1).withVideoBody(source, "Original $source", auth) { body ->
+        uploadOnly(downloads, api, cache, pollMillis = 1).withVideoBody(source, "Original $source", auth) { body ->
             val parts = JsonParser.parseString(body).asJsonObject.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")
             assertEquals(uri, parts[0].asJsonObject.getAsJsonObject("fileData").get("fileUri").asString)
             assertEquals("video/webm", parts[0].asJsonObject.getAsJsonObject("fileData").get("mimeType").asString)
@@ -85,17 +89,39 @@ class GeminiFileUploaderTest {
     @Test fun `youtube avoids download upload and cleanup entirely`() = runTest {
         val downloads = Endpoint()
         val api = Endpoint()
-        GeminiFileUploader(downloads, api, cache).withVideoBody("https://youtu.be/example", "Extract", auth) {
+        uploadOnly(downloads, api, cache).withVideoBody("https://youtu.be/example", "Extract", auth) {
             assertTrue(it.contains("https://youtu.be/example"))
         }
         assertTrue(downloads.requests.isEmpty() && api.requests.isEmpty())
         assertEquals(0, cache.listFiles()!!.size)
     }
 
+    @Test fun `small video is inline without Files API access or extra scope`() = runTest {
+        val downloads = Endpoint(Reply("video"))
+        val api = Endpoint()
+        GeminiFileUploader(downloads, api, cache).withVideoBody(source, "Extract", auth) { body ->
+            val part = JsonParser.parseString(body).asJsonObject.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")[0].asJsonObject
+            assertFalse(part.has("fileData"))
+            assertEquals("video/webm", part.getAsJsonObject("inlineData").get("mimeType").asString)
+            assertEquals("video", String(java.util.Base64.getDecoder().decode(part.getAsJsonObject("inlineData").get("data").asString)))
+        }
+        assertTrue(api.requests.isEmpty())
+        assertEquals(0, cache.listFiles()!!.size)
+    }
+
+    @Test fun `video above inline threshold uses Files instead of constructing a large blob`() = runTest {
+        val api = api()
+        GeminiFileUploader(Endpoint(Reply("video")), api, cache, inlineLimitBytes = 4)
+            .withVideoBody(source, "Extract", auth) { assertFalse(it.contains("inlineData")) }
+        assertEquals("POST", api.requests.first().method)
+        assertEquals("DELETE", api.requests.last().method)
+        assertEquals(0, cache.listFiles()!!.size)
+    }
+
     @Test fun `reject oversized declared content before upload`() = runTest {
         val api = Endpoint()
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("large-video")), api, cache, maxBytes = 4).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
+            uploadOnly(Endpoint(Reply("large-video")), api, cache, maxBytes = 4).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure && api.requests.isEmpty())
         assertEquals(0, cache.listFiles()!!.size)
@@ -110,7 +136,7 @@ class GeminiFileUploaderTest {
         }
         val api = Endpoint()
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply(body = chunked)), api, cache, maxBytes = 4).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
+            uploadOnly(Endpoint(Reply(body = chunked)), api, cache, maxBytes = 4).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure && api.requests.isEmpty())
         assertEquals(0, cache.listFiles()!!.size)
@@ -119,7 +145,7 @@ class GeminiFileUploaderTest {
     @Test fun `redirect never downgrades to HTTP`() = runTest {
         val api = Endpoint()
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply(code = 302, headers = mapOf("Location" to "http://cdn.example/video.webm"))), api, cache)
+            uploadOnly(Endpoint(Reply(code = 302, headers = mapOf("Location" to "http://cdn.example/video.webm"))), api, cache)
                 .withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure && api.requests.isEmpty())
@@ -128,7 +154,7 @@ class GeminiFileUploaderTest {
     @Test fun `untrusted upload origin cannot receive bearer token`() = runTest {
         val api = Endpoint(Reply(headers = mapOf("X-Goog-Upload-URL" to "https://evil.example/upload")))
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure)
         assertEquals(1, api.requests.size)
@@ -138,7 +164,7 @@ class GeminiFileUploaderTest {
     @Test fun `failed processing does not reach inference and cleans own file`() = runTest {
         val api = api("FAILED")
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure)
         assertEquals("DELETE", api.requests.last().method)
@@ -148,7 +174,7 @@ class GeminiFileUploaderTest {
     @Test fun `inference failure still cleans uploaded file`() = runTest {
         val api = api()
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("parse failure") }
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("parse failure") }
         }
         assertTrue(result.isFailure)
         assertEquals("DELETE", api.requests.last().method)
@@ -158,7 +184,7 @@ class GeminiFileUploaderTest {
     @Test fun `API key also remains isolated from source origin`() = runTest {
         val api = api()
         val downloads = Endpoint(Reply("video"))
-        GeminiFileUploader(downloads, api, cache).withVideoBody(source, "Extract", GeminiRequestAuth.ApiKey("synthetic-key")) { }
+        uploadOnly(downloads, api, cache).withVideoBody(source, "Extract", GeminiRequestAuth.ApiKey("synthetic-key")) { }
         assertNull(downloads.requests.single().header("x-goog-api-key"))
         assertTrue(api.requests.all { it.header("x-goog-api-key") == "synthetic-key" && it.header("Authorization") == null })
     }
@@ -181,7 +207,7 @@ class GeminiFileUploaderTest {
             Reply("""{"file":${metadata("PROCESSING")}}"""), Reply(code = 204)
         )
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache, preparationTimeoutMillis = 10, pollMillis = 100)
+            uploadOnly(Endpoint(Reply("video")), api, cache, preparationTimeoutMillis = 10, pollMillis = 100)
                 .withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.isFailure)
@@ -192,7 +218,7 @@ class GeminiFileUploaderTest {
     @Test fun `cancellation after upload also cleans the owned file`() = runTest {
         val api = api()
         val result = async(start = CoroutineStart.UNDISPATCHED) {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { awaitCancellation() }
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { awaitCancellation() }
         }
         result.cancel()
         result.join()
@@ -204,7 +230,7 @@ class GeminiFileUploaderTest {
     @Test fun `upload permission failure does not send media or invoke generation`() = runTest {
         val api = Endpoint(Reply(code = 403))
         val result = runCatching {
-            GeminiFileUploader(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth) { error("Unexpected inference") }
         }
         assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("HTTP 403"))
         assertEquals(1, api.requests.size)
