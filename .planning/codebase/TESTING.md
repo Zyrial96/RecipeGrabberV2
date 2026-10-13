@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
 analysis_date: 2026-10-13
 ---
 
 # Testing Patterns
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
+**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
 
 ## Test Framework
 
@@ -27,12 +27,14 @@ analysis_date: 2026-10-13
 ## Current Evidence
 
 - `/tmp/recipegrabber-lifecycle-build.txt` records successful `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`, and `assembleRelease` tasks, ending with `BUILD SUCCESSFUL`.
-- Live XML under `app/build/test-results/testDebugUnitTest/` totals 88 JVM tests with zero failures, errors, or skips.
+- Live XML under `app/build/test-results/testDebugUnitTest/` totals 116 JVM tests with zero failures, errors, or skips.
+- `GeminiFileUploaderTest` verifies bounded streams, auth-header isolation, upload-origin validation, ACTIVE/FAILED/timeout handling, cleanup and private DNS rejection using isolated call factories. `GeminiUploadFailureTest` verifies structured scope diagnostics without raw server-content leakage. `GeminiHttpCallTest` covers cancellation during response consumption as well as header waiting.
 - `VideoLinkParserTest` covers URL parsing and unsafe input handling in `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`.
 - `RecipeExtractionLifecycleTest` covers the extraction lifecycle and records three regressions that failed before fixes and passed after the fixes in `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`.
 - `VideoInputTest` is an Android test with two cases validating Shorts and MP4/WebM/MOV request payloads plus unsafe inputs without external network access: `app/src/androidTest/java/com/recipegrabber/VideoInputTest.kt`.
 - At production checkpoint `8324c13`, the Mi 11 suite passed ten core tests and skipped three opt-in probes in 9.203 seconds (`/tmp/recipegrabber-final-device-tests.txt`). VideoInputTest covers native payload construction, not remote media retrieval.
 - After updating the opt-in probe, the installed test APK's default suite again passed ten tests and skipped three in 8.918 seconds (`/tmp/recipegrabber-current-device-tests.txt`).
+- After the Files uploader changes, the Mi 11 default suite passed ten tests and skipped three in 8.876 seconds (`/tmp/recipegrabber-files-device-tests.txt`). Full local lint/debug/test/release build succeeded. The earlier published checkpoint `bffe751` is also fully green in hosted run 38381879227; the new uploader is not covered by that historical CI result.
 - A separately selected live WebM diagnostic failed with HTTP 400 / `INVALID_ARGUMENT` and `URL_UNREACHABLE-UNREACHABLE_5xx`. This is external failure evidence, not a default-suite failure or successful media acceptance. The probe can select `probeModel` and `probeVideoUrl` explicitly; flags remain disabled in CI.
 
 ## Test File Organization

@@ -1,5 +1,5 @@
 ---
-last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
 analysis_date: 2026-10-13
 ---
 
@@ -7,7 +7,7 @@ analysis_date: 2026-10-13
 # Architecture
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
+**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
 
 ## System Overview
 
@@ -115,6 +115,8 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 
 **State Management:** ViewModels expose `StateFlow` UI state; Room `Flow` drives recipe screens; DataStore `Flow` drives settings and onboarding; activity-owned Compose state holds pending URL and extraction-sheet visibility.
 
+**Direct media:** `GeminiProvider` validates input before authorization. For YouTube, `GeminiFileUploader` bypasses transfer and retains the URL media part. For direct files it streams up to 100 MiB into app cache, obtains a resumable Google upload session, polls the returned file until ACTIVE, substitutes only its media URI and attempts cleanup in finally. The prompt/parser/use case retain the original source URL. Download and Google API call factories are separate; Google credentials never enter source requests. Private destination DNS and unsafe redirects are rejected. Live file upload remains permission-blocked with the current retriever-only OAuth token.
+
 **Extraction lifecycle:** `RecipeExtractionViewModel` keeps the active extraction `Job`, cancels it before replacement, and cancels its progress collector in `finally` (`app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt:43`). `RecipeExtractionBottomSheet` starts work keyed by `videoUrl` and resets the ViewModel on disposal through `DisposableEffect` (`app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeExtractionBottomSheet.kt:68`). Scraping fallback results are mapped to their actual error or missing-provider message (`RecipeExtractionViewModel.kt:111`).
 
 ## Transaction Ownership
@@ -162,4 +164,4 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 ---
 
 *Architecture analysis: 2026-10-13*
-*Last mapped commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*
+*Last mapped commit: `3069fd99abb8629a520ee646984315e8f32648f4`*

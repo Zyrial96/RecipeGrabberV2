@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
 analysis_date: 2026-10-13
 ---
 
 # Technology Stack
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
+**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
 
 ## Languages
 
@@ -51,6 +51,7 @@ analysis_date: 2026-10-13
 - `androidx.room:*:2.6.1` - recipe, ingredient, and step persistence
 - `com.google.dagger:hilt-android:2.51.1` - application services and ViewModels
 - `com.squareup.okhttp3:okhttp:4.12.0` - Gemini transport and cancellation
+- `GeminiFileUploader.kt` uses existing OkHttp `Call.Factory` boundaries for download/upload/poll/delete, bounded cache streaming and public-only media DNS; no new transfer library was added.
 - `com.squareup.retrofit2:retrofit:2.11.0` - Apify and Kimi clients
 - Google Identity/Play Services Auth - OAuth flows
 - Google API client Android 2.4.1 and Drive API v3 revision 20240521 - Drive app-data operations
@@ -91,4 +92,4 @@ analysis_date: 2026-10-13
 
 ---
 
-*Stack analysis: 2026-10-13; last_mapped_commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*
+*Stack analysis: 2026-10-13; last_mapped_commit: `3069fd99abb8629a520ee646984315e8f32648f4`*

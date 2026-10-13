@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
 analysis_date: 2026-10-13
 ---
 
 # Codebase Structure
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
+**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
 
 ## Directory Layout
 
@@ -51,6 +51,8 @@ RecipeGrabberV2/
 **`app/src/main/java/com/recipegrabber/data/remote/`:** External service adapters, including `GoogleDriveService.kt`, `GoogleAiAuthorizationRequestFactory.kt`, and `apify/ApifyService.kt`.
 
 **`app/src/main/java/com/recipegrabber/domain/llm/`:** Provider abstraction and provider-specific HTTP/request parsing code: `LlmProvider.kt`, `LlmProviderFactory.kt`, `OpenAiProvider.kt`, `GeminiProvider.kt`, `ClaudeProvider.kt`, and `KimiProvider.kt`.
+
+`GeminiFileUploader.kt` owns bounded direct-media download, resumable upload, readiness polling and cleanup. `GeminiHttpCall.kt` has cancellable response consumption that keeps cancellation attached during body reads. Its `Call.Factory` boundaries are tested in `app/src/test/java/com/recipegrabber/GeminiFileUploaderTest.kt` without paid requests.
 
 **`app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`:** Shared URL extraction and validation for `ACTION_SEND` text and clipboard text. It accepts HTTPS links without userinfo, validates supported video hosts/path forms, and returns the first matching URL.
 
@@ -137,4 +139,4 @@ RecipeGrabberV2/
 ---
 
 *Structure analysis: 2026-10-13*
-*Last mapped commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*
+*Last mapped commit: `3069fd99abb8629a520ee646984315e8f32648f4`*
