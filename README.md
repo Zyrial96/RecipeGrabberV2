@@ -35,7 +35,9 @@ The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, li
 
 Credentials are optional for browsing recipes and completing onboarding. For Gemini, configure an API key or Google OAuth in Settings. API use may incur provider charges.
 
-New Gemini selections default to Gemini 3.8 Flash. Existing Gemini 2.5 Flash selections remain available, but Google limits 2.5 access to previous users; see the [model availability notice](https://ai.google.dev/gemini-api/docs/deprecations). Model selection does not fix missing OAuth registration or prove successful video extraction.
+New Gemini selections default to [Gemini 3.1 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), which supports video and structured output. Gemini 3.8 Flash remains selectable. Saved model choices are not silently migrated. Existing Gemini 2.5 Flash selections remain available, but Google limits 2.5 access to previous users; see the [model availability notice](https://ai.google.dev/gemini-api/docs/deprecations). Model selection does not fix missing OAuth registration.
+
+On 13 October 2026, Google OAuth and a public YouTube cooking-video extraction using Flash-Lite were verified on a Xiaomi Mi 11 (Android 12). The recipe, four ingredients and five steps survived an app restart, and portion scaling was checked on the imported recipe. This is evidence for that specific flow, not a guarantee of extraction accuracy or availability for all videos/models. Gemini 3.8 requests on the same device had earlier returned HTTP 503 or timed out; no automatic model substitution or retries were added. See the [device audit](.planning/audits/2026-10-13-google-oauth-registration.md).
 
 OAuth requires an enabled Generative Language API, configured consent screen and Android OAuth client matching package com.recipegrabber and the actual installed signing certificate's SHA-1. Use `./gradlew signingReport`; another developer's debug certificate is not interchangeable. Add authorized test users while the consent screen is in testing. A separate audit package needs its own registration.
 

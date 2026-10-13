@@ -104,7 +104,7 @@ object LlmModels {
     fun getDefaultModelForProvider(provider: ProviderType): LlmModel {
         return when (provider) {
             ProviderType.OPENAI -> GPT_4O
-            ProviderType.GEMINI -> GEMINI_38_FLASH
+            ProviderType.GEMINI -> GEMINI_31_FLASH_LITE
             ProviderType.CLAUDE -> CLAUDE_35_SONNET
             ProviderType.KIMI -> KIMI_K2_5
         }

@@ -60,9 +60,20 @@
 - The default Mi 11 suite completed in 9.038 seconds: eight core tests passed, and all three opt-in external probes were skipped (eleven discovered tests).
 - With code commit `345a8be`, the same public cooking-video request started at 11:38:59 and returned HTTP 503 at 11:39:04 (approximately 4.6 seconds). Authorization completed without another consent screen. No successful extraction or persisted recipe is claimed. This server rejection precedes the timeout and is not fixed by increasing it; no automatic retries were made.
 
-## Remaining Video Acceptance
+## Live Video Acceptance With Flash-Lite
 
-- Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
-- Google login, token acceptance, model metadata and one synthetic generation are demonstrated. Recipe extraction/persistence for a real video remains unproven. Isolate production request configuration and video processing from transient generation failures; do not treat the synthetic success as full acceptance.
+- Added an explicitly selectable Gemini 3.1 Flash-Lite option from Google's [published model specification](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), which supports video input and structured output. Existing choices are preserved; no automatic fallback or retry was added.
+- Code checkpoint `ba3ca40`: all 68 unit tests, lint and debug/test/release builds passed. Installed main APK SHA-256 `5d6eebed853da37556680a164059b0a97c2802da745bf19dff8004050e146278` was verified on the Mi 11 without clearing data.
+- Selected Flash-Lite in Settings for a controlled comparison with the same public Jamie Oliver video and existing Google OAuth consent. Production logs confirm `gemini-3.1-flash-lite` at 11:43:32.822, successful recipe parsing at 11:43:44.342 (approximately 11.5 seconds), and saving recipe ID 1 at 11:43:44.359.
+- After stopping the app, a read-only snapshot of its Room database and WAL showed recipe ID 1 with the original public source URL, four ingredients and five steps. The app was restarted; the recipe was visible in the list and opened into its detail view. No user database was cleared or replaced.
+- The imported recipe's portion control changed four portions to five: eight eggs became ten, and 20g butter became 25g. Returned to the original four portions afterward. Initial automation attempts used text selectors for icon descriptions and were rejected without changing the portion count; the corrected accessibility-description actions succeeded.
+- This verifies authorization, actual video request, parsing, Room persistence, restart/readback and scaling for one public video. It is not independent proof that every generated quantity/time or all three cooking variations accurately match the source; README retains the source-review warning. It does not prove TikTok/Instagram or direct-file extraction.
+- Flash-Lite is now the default for new/unset Gemini choices based on this measured working flow. Existing saved selections, including 3.8, are not migrated. This is a practical default choice, not a claim that 3.8 is universally unavailable or that Flash-Lite is universally more accurate.
+- After the default change, all 68 unit tests, lint and debug/test/release builds passed. Installed final main APK SHA-256 `d4646d2db03ab397bf942ee12d5b6f4013cba912852307581a9bdd7d03e8481b` matched the build. The Mi 11 default suite passed eight core tests and skipped three external probes in 9.013 seconds. Temporary read-only database copies and device UI dumps were removed; the saved test recipe and user app data were retained.
 
-The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved; the remaining failure is the live video API response path described above.
+## Remaining Scope And Limits
+
+- The supported public-YouTube/Google-OAuth flow has a real positive device acceptance result. Other providers, social-video ingestion, direct-file URLs and Drive backup/restore retain the implementation/test limitations in README; they are not claimed as live-verified.
+- The earlier 3.8 response failures remain external observations, not a proven quota, billing, network-protocol or OAuth-scope diagnosis. No speculative financial or permission changes were made.
+
+The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved. Successful Flash-Lite video acceptance does not erase the earlier 3.8 failures.

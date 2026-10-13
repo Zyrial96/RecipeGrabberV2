@@ -15,9 +15,9 @@ class LlmModelsTest {
     }
 
     @Test
-    fun `Gemini defaults to current stable video model`() {
+    fun `Gemini defaults to selectable lightweight video model`() {
         val model = LlmModels.getDefaultModelForProvider(ProviderType.GEMINI)
-        assertEquals("gemini-3.8-flash", model.id)
+        assertEquals("gemini-3.1-flash-lite", model.id)
         assertTrue(model.isVisionCapable)
         assertEquals(1048576, model.contextWindow)
     }
@@ -29,7 +29,7 @@ class LlmModelsTest {
         assertEquals(ProviderType.GEMINI, model?.provider)
         assertTrue(model?.isVisionCapable == true)
         assertTrue(LlmModels.getModelsForProvider(ProviderType.GEMINI).contains(model))
-        assertEquals("gemini-3.8-flash", LlmModels.getDefaultModelForProvider(ProviderType.GEMINI).id)
+        assertEquals("gemini-3.1-flash-lite", LlmModels.getDefaultModelForProvider(ProviderType.GEMINI).id)
     }
 
     @Test
