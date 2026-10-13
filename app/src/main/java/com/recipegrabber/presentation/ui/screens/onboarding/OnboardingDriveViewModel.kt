@@ -1,9 +1,11 @@
 package com.recipegrabber.presentation.ui.screens.onboarding
 
 import android.content.Intent
+import android.app.PendingIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.recipegrabber.data.remote.GoogleDriveService
+import com.recipegrabber.data.remote.DriveBackupAuthorization
+import com.recipegrabber.data.remote.GoogleAiAuthorizationStart
 import com.recipegrabber.data.repository.PreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class OnboardingDriveViewModel @Inject constructor(
-    private val googleDriveService: GoogleDriveService,
+    private val authorization: DriveBackupAuthorization,
     private val preferencesRepository: PreferencesRepository
 ) : ViewModel() {
 
@@ -32,37 +34,40 @@ class OnboardingDriveViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            preferencesRepository.googleAccountEmail.collect { email ->
-                _isConnected.value = email.isNotEmpty()
+            preferencesRepository.driveBackupAccount.collect { email ->
                 _userEmail.value = email.ifEmpty { null }
             }
         }
+        viewModelScope.launch { preferencesRepository.driveBackupConnected.collect { _isConnected.value = it } }
     }
 
-    fun getSignInIntent(): Intent {
-        return googleDriveService.getSignInIntent()
-    }
-
-    fun handleSignInResult(data: Intent?) {
+    private fun operation(action: suspend () -> Unit) {
+        if (_isLoading.value) return
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
             try {
-                val result = googleDriveService.handleSignInResult(data)
-                result.onSuccess { email ->
-                    preferencesRepository.setGoogleAccountEmail(email)
-                    preferencesRepository.setDriveSyncEnabled(true)
-                    _isConnected.value = true
-                    _userEmail.value = email
-                }.onFailure { e ->
-                    _error.value = e.message ?: "Anmeldung fehlgeschlagen"
-                }
+                action()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _error.value = e.message ?: "Unbekannter Fehler"
+                _error.value = "Google Drive connection failed. Please try again."
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun connect(onConsent: (PendingIntent) -> Unit) = operation {
+        when (val start = authorization.start()) {
+            is GoogleAiAuthorizationStart.NeedsUserConsent -> onConsent(start.pendingIntent)
+            is GoogleAiAuthorizationStart.Authorized -> Unit
+        }
+    }
+
+    fun finish(resultCode: Int, data: Intent?) = operation {
+        if (resultCode == android.app.Activity.RESULT_OK && data != null) authorization.finish(data)
+        else _error.value = "Google Drive connection cancelled"
     }
 }

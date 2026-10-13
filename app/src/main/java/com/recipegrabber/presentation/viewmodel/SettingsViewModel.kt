@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.GoogleAiAuthorizationStart
 import com.recipegrabber.data.remote.GoogleDriveService
+import com.recipegrabber.data.remote.DriveBackupAuthorization
+import com.recipegrabber.data.remote.DriveArchive
+import com.recipegrabber.domain.backup.DriveBackupCoordinator
 import com.recipegrabber.data.repository.PreferencesRepository
 import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.LlmModels
@@ -21,6 +24,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
+    val driveBackupConnected: Boolean = false,
+    val driveBackupAccount: String = "",
+    val driveArchives: List<DriveArchive> = emptyList(),
+    val driveBusy: Boolean = false,
+    val driveStatus: String? = null,
     val llmProvider: ProviderType = ProviderType.OPENAI,
     val llmModel: String = LlmModels.GPT_4O.id,
     val geminiAuthMode: GeminiAuthMode = GeminiAuthMode.API_KEY,
@@ -31,7 +39,6 @@ data class SettingsUiState(
     val claudeApiKey: String = "",
     val kimiApiKey: String = "",
     val apifyApiKey: String = "",
-    val driveSyncEnabled: Boolean = false,
     val googleAccountEmail: String = "",
     val clipboardMonitorEnabled: Boolean = true,
     val darkModeEnabled: Boolean = true,
@@ -45,6 +52,8 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val googleDriveService: GoogleDriveService,
+    private val driveAuthorization: DriveBackupAuthorization,
+    private val driveBackups: DriveBackupCoordinator,
     private val logger: AppLogger
 ) : ViewModel() {
 
@@ -52,10 +61,17 @@ class SettingsViewModel @Inject constructor(
     private val _showApifyHelp = MutableStateFlow(false)
     private val _uiState = MutableStateFlow(SettingsUiState(isLoading = true))
     private val credentialSaveJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+    private var driveJob: kotlinx.coroutines.Job? = null
 
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            preferencesRepository.driveBackupConnected.collect { _uiState.value = _uiState.value.copy(driveBackupConnected = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.driveBackupAccount.collect { _uiState.value = _uiState.value.copy(driveBackupAccount = it) }
+        }
         viewModelScope.launch {
             preferencesRepository.llmProviderType.collect { _uiState.value = _uiState.value.copy(llmProvider = it) }
         }
@@ -87,9 +103,6 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesRepository.apifyApiKey.collect { _uiState.value = _uiState.value.copy(apifyApiKey = it) }
-        }
-        viewModelScope.launch {
-            preferencesRepository.driveSyncEnabled.collect { _uiState.value = _uiState.value.copy(driveSyncEnabled = it) }
         }
         viewModelScope.launch {
             preferencesRepository.googleAccountEmail.collect { _uiState.value = _uiState.value.copy(googleAccountEmail = it) }
@@ -195,14 +208,6 @@ class SettingsViewModel @Inject constructor(
         _showApifyHelp.value = false
     }
 
-    fun getSignInIntent(): Intent {
-        return getDriveSignInIntent()
-    }
-
-    fun getDriveSignInIntent(): Intent {
-        return googleDriveService.getSignInIntent(includeGenerativeLanguage = false)
-    }
-
     fun startGoogleAiAuthorization(includeFiles: Boolean = false, onUserConsentRequired: (PendingIntent) -> Unit) {
         viewModelScope.launch {
             _message.value = null
@@ -226,31 +231,6 @@ class SettingsViewModel @Inject constructor(
                     _message.value = "Failed to authorize Google OAuth: ${error.message ?: "unknown error"}"
                 }
             )
-        }
-    }
-
-    fun handleSignInResult(data: Intent?) {
-        handleDriveSignInResult(data)
-    }
-
-    fun handleDriveSignInResult(data: Intent?) {
-        viewModelScope.launch {
-            _message.value = null
-            try {
-                val result = googleDriveService.handleSignInResult(data)
-                result.fold(
-                    onSuccess = { email ->
-                        preferencesRepository.setGoogleAccountEmail(email)
-                        preferencesRepository.setDriveSyncEnabled(true)
-                        _message.value = "Google Drive sync enabled"
-                    },
-                    onFailure = {
-                        _message.value = "Failed to sign in to Google"
-                    }
-                )
-            } catch (e: Exception) {
-                _message.value = "Failed to sign in to Google"
-            }
         }
     }
 
@@ -280,27 +260,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setDriveSyncEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            if (enabled) {
-                _message.value = "Please sign in using the Google Drive settings"
-            } else {
-                preferencesRepository.setDriveSyncEnabled(false)
-                _message.value = "Google Drive sync disabled"
-            }
-        }
-    }
-
-    fun signOutGoogle() {
-        viewModelScope.launch {
-            googleDriveService.signOut()
-            preferencesRepository.setDriveSyncEnabled(false)
-            preferencesRepository.setGeminiOAuthAuthorized(false)
-            preferencesRepository.setGoogleAccountEmail("")
-            _message.value = "Signed out from Google"
-        }
-    }
-
     fun setClipboardMonitorEnabled(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setClipboardMonitorEnabled(enabled)
@@ -324,4 +283,61 @@ class SettingsViewModel @Inject constructor(
     fun clearMessage() {
         _message.value = null
     }
+
+    private fun driveOperation(action: suspend () -> Unit) {
+        if (driveJob?.isActive == true) return
+        driveJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(driveBusy = true, driveStatus = null)
+            try {
+                action()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _uiState.value = _uiState.value.copy(driveStatus = "Operation cancelled. Refresh backups before retrying.")
+                throw e
+            } catch (e: Exception) {
+                logger.e("DriveBackup", "Drive operation failed", e)
+                _uiState.value = _uiState.value.copy(driveStatus = "Drive operation failed. Check your connection and reconnect Google Drive if permission expired.")
+            } finally {
+                _uiState.value = _uiState.value.copy(driveBusy = false)
+            }
+        }
+    }
+
+    fun connectDrive(onConsent: (PendingIntent) -> Unit) = driveOperation {
+        when (val start = driveAuthorization.start()) {
+            is GoogleAiAuthorizationStart.NeedsUserConsent -> onConsent(start.pendingIntent)
+            is GoogleAiAuthorizationStart.Authorized -> _uiState.value = _uiState.value.copy(driveArchives = driveBackups.list())
+        }
+    }
+
+    fun finishDriveAuthorization(resultCode: Int, data: Intent?) = driveOperation {
+        if (resultCode != android.app.Activity.RESULT_OK || data == null) {
+            _uiState.value = _uiState.value.copy(driveStatus = "Google Drive connection cancelled")
+        } else {
+            driveAuthorization.finish(data)
+            _uiState.value = _uiState.value.copy(driveArchives = driveBackups.list(), driveStatus = "Google Drive connected")
+        }
+    }
+
+    fun refreshDriveBackups() = driveOperation {
+        _uiState.value = _uiState.value.copy(driveArchives = driveBackups.list(), driveStatus = "Backups refreshed")
+    }
+
+    fun backupToDrive() = driveOperation {
+        val count = driveBackups.backup()
+        _uiState.value = _uiState.value.copy(driveStatus = "Backup saved: $count recipes")
+        _uiState.value = _uiState.value.copy(driveArchives = driveBackups.list())
+    }
+
+    fun restoreDriveBackup(archive: DriveArchive) = driveOperation {
+        check(_uiState.value.driveArchives.any { it.id == archive.id })
+        val result = driveBackups.restore(archive.id)
+        _uiState.value = _uiState.value.copy(driveStatus = "Restored ${result.inserted} recipes; ${result.skipped} existing recipes kept")
+    }
+
+    fun disconnectDrive() = driveOperation {
+        preferencesRepository.setDriveBackupConnection(false)
+        _uiState.value = _uiState.value.copy(driveArchives = emptyList(), driveStatus = "Drive disconnected; cloud backups retained")
+    }
+
+    fun cancelDriveOperation() { driveJob?.cancel() }
 }

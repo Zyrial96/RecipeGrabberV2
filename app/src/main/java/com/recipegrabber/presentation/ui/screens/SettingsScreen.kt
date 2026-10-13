@@ -79,9 +79,9 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val driveSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
+        contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        viewModel.handleDriveSignInResult(result.data)
+        viewModel.finishDriveAuthorization(result.resultCode, result.data)
     }
     val googleAiAuthorizationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -162,12 +162,14 @@ fun SettingsScreen(
             }
 
             // Google Drive Section
-            SettingsSection(title = "Google Drive Sync", icon = Icons.Default.CloudSync) {
+            SettingsSection(title = "Google Drive Backups", icon = Icons.Default.CloudSync) {
                 DriveSettings(
                     uiState = uiState,
                     viewModel = viewModel,
                     onDriveSignIn = {
-                        driveSignInLauncher.launch(viewModel.getDriveSignInIntent())
+                        viewModel.connectDrive { pendingIntent ->
+                            driveSignInLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+                        }
                     }
                 )
             }
@@ -433,45 +435,61 @@ fun ApifySettings(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun DriveSettings(
     uiState: SettingsUiState,
     viewModel: SettingsViewModel,
     onDriveSignIn: () -> Unit
+) = DriveBackupControls(uiState, onDriveSignIn, viewModel::backupToDrive, viewModel::refreshDriveBackups,
+    viewModel::disconnectDrive, viewModel::cancelDriveOperation, viewModel::restoreDriveBackup)
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+fun DriveBackupControls(
+    uiState: SettingsUiState,
+    onConnect: () -> Unit,
+    onBackup: () -> Unit,
+    onRefresh: () -> Unit,
+    onDisconnect: () -> Unit,
+    onCancel: () -> Unit,
+    onRestore: (com.recipegrabber.data.remote.DriveArchive) -> Unit
 ) {
+    var restoreArchive by remember { mutableStateOf<com.recipegrabber.data.remote.DriveArchive?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsToggle(
-            icon = Icons.Default.CloudSync,
-            title = "Enable Drive Sync",
-            subtitle = if (uiState.driveSyncEnabled && uiState.googleAccountEmail.isNotEmpty()) {
-                "Connected to ${uiState.googleAccountEmail}"
-            } else {
-                "Backup recipes to Google Drive"
-            },
-            checked = uiState.driveSyncEnabled,
-            onCheckedChange = { enabled ->
-                if (enabled) {
-                    onDriveSignIn()
-                } else {
-                    viewModel.setDriveSyncEnabled(false)
+        if (uiState.driveBackupConnected) {
+            Text(uiState.driveBackupAccount.ifBlank { "Google Drive connected" }, style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onBackup, enabled = !uiState.driveBusy) {
+                    Icon(Icons.Default.CloudUpload, contentDescription = null)
+                    Text("Backup now")
+                }
+                OutlinedButton(onClick = onRefresh, enabled = !uiState.driveBusy) { Text("Refresh backups") }
+                TextButton(onClick = onDisconnect, enabled = !uiState.driveBusy) { Text("Disconnect Drive") }
+            }
+            if (uiState.driveArchives.isEmpty() && !uiState.driveBusy) Text("No backups loaded")
+            uiState.driveArchives.forEach { archive ->
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${archive.createdTime}\n${archive.recipeCount} recipes", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { restoreArchive = archive }, enabled = !uiState.driveBusy) { Text("Restore") }
                 }
             }
-        )
-
-        if (uiState.driveSyncEnabled) {
-            OutlinedButton(
-                onClick = { viewModel.signOutGoogle() },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Disconnect")
-            }
         } else {
-            OutlinedButton(
-                onClick = onDriveSignIn,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Connect Google")
-            }
+            OutlinedButton(onClick = onConnect, enabled = !uiState.driveBusy) { Text("Connect Google Drive") }
         }
+        if (uiState.driveBusy) {
+            androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        }
+        uiState.driveStatus?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+    }
+    restoreArchive?.let { archive ->
+        AlertDialog(
+            onDismissRequest = { restoreArchive = null },
+            title = { Text("Restore backup?") },
+            text = { Text("Add missing recipes from this backup? Existing recipes and local changes will be kept.") },
+            confirmButton = { TextButton(onClick = { restoreArchive = null; onRestore(archive) }) { Text("Restore backup") } },
+            dismissButton = { TextButton(onClick = { restoreArchive = null }) { Text("Cancel") } }
+        )
     }
 }
 

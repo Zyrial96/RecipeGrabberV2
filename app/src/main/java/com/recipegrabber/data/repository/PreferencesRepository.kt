@@ -63,12 +63,24 @@ class PreferencesRepository @Inject constructor(
         
         // Google Drive
         val DRIVE_SYNC_ENABLED = booleanPreferencesKey("drive_sync_enabled")
+        val DRIVE_BACKUP_CONNECTED = booleanPreferencesKey("drive_backup_connected")
+        val DRIVE_BACKUP_ACCOUNT = stringPreferencesKey("drive_backup_account")
         val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
         
         // App Settings
         val CLIPBOARD_MONITOR_ENABLED = booleanPreferencesKey("clipboard_monitor_enabled")
         val DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
         val AUTO_EXTRACT_RECIPES = booleanPreferencesKey("auto_extract_recipes")
+    }
+
+    val driveBackupConnected: Flow<Boolean> = context.dataStore.data.map { it[PreferencesKeys.DRIVE_BACKUP_CONNECTED] ?: false }
+    val driveBackupAccount: Flow<String> = context.dataStore.data.map { it[PreferencesKeys.DRIVE_BACKUP_ACCOUNT] ?: "" }
+
+    suspend fun setDriveBackupConnection(connected: Boolean, account: String = "") {
+        context.dataStore.edit {
+            it[PreferencesKeys.DRIVE_BACKUP_CONNECTED] = connected
+            it[PreferencesKeys.DRIVE_BACKUP_ACCOUNT] = account
+        }
     }
     
     // Onboarding Status

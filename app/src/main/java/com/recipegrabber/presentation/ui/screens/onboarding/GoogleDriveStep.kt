@@ -3,6 +3,7 @@ package com.recipegrabber.presentation.ui.screens.onboarding
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,9 +39,9 @@ fun GoogleDriveStep(
     val userEmail by viewModel.userEmail.collectAsState()
 
     val signInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
+        contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        viewModel.handleSignInResult(result.data)
+        viewModel.finish(result.resultCode, result.data)
     }
 
     Column(
@@ -48,8 +49,8 @@ fun GoogleDriveStep(
     ) {
         StepHeader(
             icon = Icons.Default.Cloud,
-            title = "Google Drive Sync",
-            description = "Sichere deine Rezepte in der Cloud und greife von überall darauf zu."
+            title = "Google Drive Backups",
+            description = "Optionale Sicherung deiner Rezepte in Google Drive."
         )
 
         when {
@@ -88,8 +89,7 @@ fun GoogleDriveStep(
 
                 Button(
                     onClick = {
-                        val intent = viewModel.getSignInIntent()
-                        signInLauncher.launch(intent)
+                        viewModel.connect { signInLauncher.launch(IntentSenderRequest.Builder(it.intentSender).build()) }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

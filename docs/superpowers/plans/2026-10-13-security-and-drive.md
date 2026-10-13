@@ -42,10 +42,10 @@
 
 ## D-02: Drive Transport And Settings
 
-- [ ] Separate Drive AuthorizationClient flow requests only appDataFolder permission, verifies actual grant/token, and preserves Gemini authorization.
-- [ ] Transport creates versioned appDataFolder snapshots, lists only owned supported backups, downloads with limits, and propagates cancellation. No broad Drive scope, automatic overwrite, IAM role or cloud deletion.
-- [ ] Settings offers Backup now, archive selection, restore confirmation, progress/errors/result counts, and actual account/authorization state without implying automatic sync.
-- [ ] JVM/native tests for serialization/transport errors/cancellation and UI states. Build/lint/device tests; commit/push.
+- [x] Separate Drive AuthorizationClient flow requests only appDataFolder permission, verifies actual grant/token, and preserves Gemini authorization.
+- [x] Transport creates versioned appDataFolder snapshots, lists only owned supported backups, downloads with limits, and propagates cancellation. No broad Drive scope, automatic overwrite, IAM role or cloud deletion.
+- [x] Settings offers Backup now, archive selection, restore confirmation, progress/errors/result counts, and actual account/authorization state without implying automatic sync.
+- [x] JVM/native tests for serialization/transport errors/cancellation and UI states. 150 JVM passes; twenty-five QA device passes and four external skips. Debug/release/lint pass; publication in D-02 commit.
 
 ## D-03: Real Acceptance And Documentation
 
