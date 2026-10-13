@@ -91,7 +91,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     logger.e("Gemini", "API error ${response.code}")
-                    return@withContext Result.failure(Exception("Gemini API error: ${response.code}"))
+                    return@withContext Result.failure(geminiHttpFailure(response.code))
                 }
                 val responseBody = response.body?.string()
                     ?: return@withContext Result.failure(Exception("No response from Gemini"))
@@ -107,4 +107,15 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
         }
     }
 
+}
+
+internal fun geminiHttpFailure(code: Int): Exception {
+    val message = when (code) {
+        401 -> "Gemini-Anmeldung fehlgeschlagen. Google-Verbindung oder API-Schluessel pruefen."
+        403 -> "Gemini-Zugriff verweigert. Cloud-Projekt, Berechtigungen und Modellzugriff pruefen."
+        429 -> "Gemini-Anfragelimit erreicht. Kontingent pruefen und spaeter erneut versuchen."
+        500, 502, 503, 504 -> "Gemini ist voruebergehend nicht verfuegbar. Bitte spaeter erneut versuchen."
+        else -> "Gemini konnte die Anfrage nicht verarbeiten."
+    }
+    return Exception("$message (HTTP $code)")
 }
