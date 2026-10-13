@@ -35,7 +35,14 @@ analysis_date: 2026-10-13
 
 ## Known Bugs
 
+**Recipe list displays zero ingredients after persistence:**
+- Device evidence: the two saved recipes show `0 ingredients`, while prior read-only persistence checks and detail views establish four ingredients each.
+- Cause: `RecipeCard` reads `recipe.ingredients.size` from the embedded Room entity instead of `recipeWithDetails.ingredients.size`. Steps correctly use the relation. `RecipeListViewModel` already supplies the loaded details; no schema/data rewrite is needed.
+- File: `app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeListScreen.kt:274`.
+- Next focused fix: read the loaded relation and add a Compose card regression using an empty embedded ingredient list plus nonempty relation. Do not interrupt the pending Google consent UI with instrumentation/installation to test this independent fix.
+
 **Larger file acceptance remains open:**
+- Follow-up at `aa4a8eb`: implementation approval was granted and the optional Settings flow is now implemented, with 121 green JVM tests and local builds. Its Mi 11 authorization awaits personal confirmation of Google's unverified-app warning. Earlier missing-approval/scope-factory statements below are historical; the real large-file acceptance gate remains open.
 - Symptoms: `VideoLinkParser` accepts safe direct HTTPS MP4/WebM/MOV links and shared text, and native payload coverage passes. A real Commons WebM returned HTTP 400 with `URL_UNREACHABLE-UNREACHABLE_5xx` from Google's fetcher; the same origin responded HTTP 200 from the Mac. Remote-file extraction/persistence acceptance is not established.
 - Update: `GeminiFileUploader` now downloads that media with proper application identification and uses Files API transfer. Its live upload start is rejected with HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`; the current scope remains retriever-only. Additional Cloud Storage permission needs separate user-approved consent, not a global or silent scope expansion.
 - Current update: the same WebM succeeded through the new inline path (up to 8 MiB), saved four ingredients/seven steps and reopened after restart. No extra Google permission was required. The 8-100 MiB Files branch remains unverified/permission-blocked; do not narrow the full acceptance gate to the successful small-file branch.

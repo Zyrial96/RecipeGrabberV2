@@ -27,7 +27,9 @@ analysis_date: 2026-10-13
 ## Current Evidence
 
 - `/tmp/recipegrabber-lifecycle-build.txt` records successful `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`, and `assembleRelease` tasks, ending with `BUILD SUCCESSFUL`.
-- Live XML under `app/build/test-results/testDebugUnitTest/` totals 118 JVM tests with zero failures, errors, or skips.
+- At the original mapping checkpoint, XML totals 118 JVM tests with zero failures, errors, or skips.
+- Focused update at `aa4a8eb`: 121 JVM tests pass; full lint/debug/test/release builds pass. Optional Files tests check explicit combined scopes, small-video/YouTube isolation, the separate upload/poll/cleanup token and missing-consent cleanup before upload. Deliberately bypassing the new callback makes two tests fail; restoring it returns the suite to green.
+- Mi 11 follow-up suite: ten core passes, three external opt-in skips, 9.101 seconds. Disclosure and authorization were exercised up to Google's personal unverified-app warning. A live large-file grant/upload/inference is not claimed. Hosted run 38418805954 is not yet terminal and must not be called green.
 - Inline routing tests prove small video bytes/MIME are attached without Files calls and threshold-exceeding inputs still use the larger-file upload path. Upload-only fixtures explicitly isolate that branch; the 100 MiB download cap is unchanged.
 - `GeminiFileUploaderTest` verifies bounded streams, auth-header isolation, upload-origin validation, ACTIVE/FAILED/timeout handling, cleanup and private DNS rejection using isolated call factories. `GeminiUploadFailureTest` verifies structured scope diagnostics without raw server-content leakage. `GeminiHttpCallTest` covers cancellation during response consumption as well as header waiting.
 - `VideoLinkParserTest` covers URL parsing and unsafe input handling in `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`.

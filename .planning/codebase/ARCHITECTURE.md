@@ -131,6 +131,8 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 
 **Foreground service:** `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` is non-exported, starts as `specialUse`, listens to clipboard changes, and emits package-scoped broadcasts.
 
+**Optional Files authorization update at `aa4a8eb`:** Settings has separate base/Files result launchers and an explicit permission disclosure. The uploader invokes a Files-token callback only after the downloaded size exceeds 8 MiB; the provider then selects a combined-scope token for file operations and generation. Base authorization remains unchanged. Real large-file acceptance awaits personal confirmation of Google's unverified-app warning on the Mi 11, not implementation approval.
+
 **Dependency injection:** `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt` provides Room and DAOs; `app/src/main/java/com/recipegrabber/di/LlmModule.kt` provides LLM dependencies; Hilt supplies the rest through constructors.
 
 ## Architectural Constraints
