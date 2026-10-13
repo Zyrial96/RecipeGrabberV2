@@ -24,6 +24,9 @@ class GeminiNetworkProbeTest {
     fun minimalGenerationResponds() = runBlocking {
         val arguments = InstrumentationRegistry.getArguments()
         assumeTrue(arguments.getString("generationProbe") == "true")
+        val model = arguments.getString("probeModel") ?: "gemini-3.8-flash"
+        val videoUrl = arguments.getString("probeVideoUrl")
+        val prompt = "Return only this JSON object: {\"ok\":true}"
         val project = arguments.getString("googleProject")
         require(project == null || project.matches(Regex("[a-z][a-z0-9-]{4,61}[a-z0-9]")))
         val http1 = arguments.getString("generationHttp1") == "true"
@@ -37,8 +40,14 @@ class GeminiNetworkProbeTest {
         val token = authorization.accessToken
         assertTrue("No access token returned", !token.isNullOrBlank())
         val request = GeminiRequestFactory.buildGenerateContentRequest(
-            "gemini-3.8-flash",
-            """{"contents":[{"parts":[{"text":"Return only this JSON object: {\"ok\":true}"}]}],"generationConfig":{"responseMimeType":"application/json","maxOutputTokens":1024}}""",
+            model,
+            if (videoUrl == null) {
+                """{"contents":[{"parts":[{"text":"Return only this JSON object: {\"ok\":true}"}]}],"generationConfig":{"responseMimeType":"application/json","maxOutputTokens":1024}}"""
+            } else {
+                JsonParser.parseString(GeminiRequestFactory.buildVideoBody(videoUrl, prompt)).asJsonObject.apply {
+                    getAsJsonObject("generationConfig").addProperty("maxOutputTokens", 1024)
+                }.toString()
+            },
             GeminiRequestAuth.OAuth(requireNotNull(token))
         ).newBuilder().apply {
             if (project != null) header("x-goog-user-project", project)
@@ -56,10 +65,13 @@ class GeminiNetworkProbeTest {
                 val body = JsonParser.parseString(response.body!!.string()).asJsonObject
                 val error = body.getAsJsonObject("error")
                 val status = error?.get("status")?.asString.orEmpty()
+                val explanation = error?.get("message")?.asString.orEmpty()
+                    .replace(Regex("https?://[^\\s\"]+"), "[url]").take(250)
                 val reasons = error?.getAsJsonArray("details")?.mapNotNull {
                     it.asJsonObject.get("reason")?.asString
                 }.orEmpty().joinToString(",")
                 Log.i("RG-NetworkProbe", "minimal generation: HTTP ${response.code}, status=$status, reasons=$reasons, quotaHeader=${project != null}, protocol=${response.protocol}, ${elapsed}ms")
+                if (explanation.isNotEmpty()) Log.i("RG-NetworkProbe", "API explanation: $explanation")
                 assertTrue("HTTP ${response.code}, $status, $reasons", response.isSuccessful)
                 val candidate = body.getAsJsonArray("candidates").first().asJsonObject
                 val output = candidate.getAsJsonObject("content").getAsJsonArray("parts")

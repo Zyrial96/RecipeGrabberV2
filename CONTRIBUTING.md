@@ -42,6 +42,8 @@ For a separately authorized generation check, select only `GeminiNetworkProbeTes
 
 Optional generation arguments isolate one configuration difference at a time: `-e googleProject YOUR_PROJECT_ID` adds a quota-project header, `-e generationHttp1 true` forces HTTP/1.1, and `-e generationWaitSeconds N` changes the read wait (10-600 seconds). The total deadline is the read wait plus 15 seconds, capped at 600 seconds. These options affect only the explicitly selected diagnostic, not production settings. Keep token/account details out of reports and do not infer a cause merely because different requests have different outcomes.
 
+`-e probeModel GEMINI_MODEL_ID` selects the diagnostic model explicitly. `-e probeVideoUrl PUBLIC_VIDEO_URL` attaches actual media using the production request factory instead of sending the text-only prompt. These flags can generate content and incur usage; they are never enabled in CI. Error explanations are bounded and URL-redacted; review any diagnostic report before sharing it. Passing the synthetic JSON assertion proves media-request acceptance, not recipe extraction or persistence.
+
 Xiaomi may restrict USB installation and input separately. Normal APK download/package installation can support development without root or globally disabling Play Protect. Report actual device restrictions rather than substituting a successful host build.
 
 ## Issues And Pull Requests
