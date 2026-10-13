@@ -144,7 +144,7 @@ class ExtractRecipeUseCase @Inject constructor(
                 },
                 onFailure = { error ->
                     if (error is CancellationException) throw error
-                    logger.e("ExtractRecipe", "LLM extraction failed: ${error.message}", error)
+                    logger.e("ExtractRecipe", "LLM extraction failed", error)
                     ExtractionResult.Error(error.message ?: "Extraction failed")
                 }
             )
@@ -171,7 +171,7 @@ class ExtractRecipeUseCase @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.e("ExtractRecipe", "Apify scrape exception: ${e.message}", e)
+            logger.e("ExtractRecipe", "Apify scrape failed", e)
             null
         }
     }

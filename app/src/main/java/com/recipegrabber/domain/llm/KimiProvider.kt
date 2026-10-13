@@ -38,7 +38,7 @@ class KimiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            logger.i("Kimi", "Starting extraction for URL: $videoUrl")
+            logger.i("Kimi", "Starting video extraction")
             val apiKey = preferencesRepository.kimiApiKey.first()
             if (apiKey.isBlank()) {
                 logger.e("Kimi", "API key not configured")
@@ -51,7 +51,7 @@ class KimiProvider @Inject constructor(
             } else {
                 "moonshot-v1-128k"
             }
-            logger.i("Kimi", "Using model: $model")
+            logger.i("Kimi", "Model selected")
 
             val response = api.extractRecipe(
                 authorization = "Bearer $apiKey",
@@ -98,10 +98,10 @@ val content = response.choices.firstOrNull()?.message?.content
                     logger.e("Kimi", "Empty response from API")
                     return@withContext Result.failure(Exception("No response from Kimi"))
                 }
-                logger.d("Kimi", "Raw response: ${content.take(500)}")
+                logger.d("Kimi", "Provider response received")
 
             val recipe = parseKimiResponse(content, videoUrl)
-            logger.i("Kimi", "Successfully extracted recipe: ${recipe.title}")
+            logger.i("Kimi", "Recipe extraction succeeded")
             Result.success(recipe)
         } catch (e: Exception) {
             logger.e("Kimi", "Extraction failed", e)

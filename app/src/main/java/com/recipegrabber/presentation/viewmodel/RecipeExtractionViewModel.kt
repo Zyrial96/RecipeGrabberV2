@@ -79,7 +79,7 @@ class RecipeExtractionViewModel @Inject constructor(
 
             when (result) {
                 is ExtractRecipeUseCase.ExtractionResult.Success -> {
-                    logger.i("ExtractionVM", "Extraction succeeded: ${result.recipe.title}")
+                    logger.i("ExtractionVM", "Extraction succeeded")
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,
@@ -136,7 +136,7 @@ class RecipeExtractionViewModel @Inject constructor(
                     }
                 }
                 is ExtractRecipeUseCase.ExtractionResult.Error -> {
-                    logger.e("ExtractionVM", "Extraction error: ${result.message}")
+                    logger.e("ExtractionVM", "Extraction failed")
                     _uiState.value = ExtractionUiState(
                         isLoading = false,
                         videoUrl = videoUrl,

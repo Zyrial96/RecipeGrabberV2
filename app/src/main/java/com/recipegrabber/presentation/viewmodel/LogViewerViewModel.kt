@@ -36,9 +36,11 @@ class LogViewerViewModel @Inject constructor(
             try {
                 val content = logger.getLogContent()
                 uiState = uiState.copy(logContent = content, isLoading = false)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    logContent = "Error loading logs: ${e.message}",
+                    logContent = "Diagnostics could not be loaded",
                     isLoading = false
                 )
             }
@@ -46,13 +48,17 @@ class LogViewerViewModel @Inject constructor(
     }
 
     fun shareLogs(context: Context) {
-        try {
-            val shareIntent = logger.createShareIntent()
-            val chooser = Intent.createChooser(shareIntent, "Share RecipeGrabber Logs")
-            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(chooser)
-        } catch (e: Exception) {
-            uiState = uiState.copy(message = "Failed to share logs: ${e.message}")
+        viewModelScope.launch {
+            try {
+                val shareIntent = logger.createShareIntent()
+                val chooser = Intent.createChooser(shareIntent, "Share RecipeGrabber Logs")
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(chooser)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                uiState = uiState.copy(message = "Diagnostics could not be shared")
+            }
         }
     }
 

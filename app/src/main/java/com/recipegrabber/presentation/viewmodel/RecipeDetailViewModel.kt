@@ -84,7 +84,7 @@ class RecipeDetailViewModel @Inject constructor(
             uiState.value.recipe?.recipe?.let { recipe ->
                 try {
                     recipeRepository.toggleFavorite(recipe.id, !recipe.isFavorite)
-                    logger.i("RecipeDetail", "Toggled favorite for recipe: ${recipe.title}")
+                    logger.i("RecipeDetail", "Recipe favorite updated")
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -102,7 +102,7 @@ class RecipeDetailViewModel @Inject constructor(
             try {
                 uiState.value.recipe?.recipe?.let { recipe ->
                     recipeRepository.deleteRecipe(recipe)
-                    logger.i("RecipeDetail", "Deleted recipe: ${recipe.title}")
+                    logger.i("RecipeDetail", "Recipe deleted")
                     onDeleted()
                 }
             } catch (e: CancellationException) {
@@ -163,7 +163,7 @@ class RecipeDetailViewModel @Inject constructor(
         val shareIntent = Intent.createChooser(sendIntent, "Rezept teilen")
         shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(shareIntent)
-        logger.i("RecipeDetail", "Shared recipe: ${r.title}")
+        logger.i("RecipeDetail", "Recipe shared")
     }
 
     fun clearError() {

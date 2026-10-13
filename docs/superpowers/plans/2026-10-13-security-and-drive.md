@@ -27,10 +27,10 @@
 
 ## S-02: Diagnostics And Platform Backup
 
-- [ ] Remove URL/account/title/raw-response/error-message logging at call sites. Central sanitization before logcat, queue and file export; throwables retain only safe class/frame metadata.
-- [ ] Bound queue, entry size, total retained bytes/file count and export size; sanitize historical logs before exposing them; make sharing suspend rather than blocking UI.
-- [ ] Restrict both platform backup-rule formats to intended recipe database data; exclude credentials/settings/logs/cache and document device-bound keys.
-- [ ] JVM/native tests: credential/email/URL/header/JSON redaction, historical exports, limits, rotation, XML allowlists and asynchronous sharing. Commit/push.
+- [x] Remove URL/account/title/raw-response/error-message logging at call sites. Central sanitization before logcat, queue and file export; throwables retain safe class metadata, not messages/stacks.
+- [x] Bound queue, entry size, total retained bytes/file count and export size; replace unknown historical diagnostic contents at privacy upgrade, including the old cached export; make sharing suspend rather than blocking UI.
+- [x] Restrict both platform backup-rule formats to intended recipe database/WAL data; exclude credentials/settings/logs/cache and require cloud encryption support. FileProvider exposes only diagnostic exports.
+- [x] JVM/native tests: credential/email/URL/header redaction, raw-response suppression, legacy exports, limits, rotation, XML allowlists and asynchronous sharing. 134 JVM passes; seventeen native passes, three skips. Publication in S-02/S-03 commit.
 
 ## D-01: Backup Format And Transactional Merge
 

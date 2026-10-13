@@ -38,7 +38,7 @@ class ClaudeProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            logger.i("Claude", "Starting extraction for URL: $videoUrl")
+            logger.i("Claude", "Starting video extraction")
             val apiKey = preferencesRepository.claudeApiKey.first()
             if (apiKey.isBlank()) {
                 logger.e("Claude", "API key not configured")
@@ -51,7 +51,7 @@ class ClaudeProvider @Inject constructor(
             } else {
                 "claude-3-5-sonnet-20241022"
             }
-            logger.i("Claude", "Using model: $model")
+            logger.i("Claude", "Model selected")
 
             val response = api.extractRecipe(
                 apiKey = apiKey,
@@ -100,10 +100,10 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                 logger.e("Claude", "Empty response from API")
                 return@withContext Result.failure(Exception("No response from Claude"))
             }
-            logger.d("Claude", "Raw response: ${content.take(500)}")
+            logger.d("Claude", "Provider response received")
 
             val recipe = parseClaudeResponse(content, videoUrl)
-            logger.i("Claude", "Successfully extracted recipe: ${recipe.title}")
+            logger.i("Claude", "Recipe extraction succeeded")
             Result.success(recipe)
         } catch (e: Exception) {
             logger.e("Claude", "Extraction failed", e)

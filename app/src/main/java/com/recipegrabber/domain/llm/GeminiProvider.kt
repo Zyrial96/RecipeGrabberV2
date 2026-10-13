@@ -38,7 +38,7 @@ class GeminiProvider @Inject constructor(
             } else {
                 LlmModels.getDefaultModelForProvider(ProviderType.GEMINI).id
             }
-            logger.i("Gemini", "Using model: $model")
+            logger.i("Gemini", "Model selected")
 
             val prompt = """Du bist ein Rezept-Extraktor. Analysiere das Video unter dieser URL und extrahiere NUR das Rezept, das im Video tatsächlich zubereitet wird. Erfinde keine Rezepte!
 
@@ -107,7 +107,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                     val responseBody = response.body?.string()
                         ?: return@consumeGeminiResponse Result.failure(Exception("No response from Gemini"))
                     val parsed = GeminiResponseParser.parse(responseBody, videoUrl)
-                    logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
+                    logger.i("Gemini", "Recipe extraction succeeded")
                     Result.success(parsed)
                 }
             }

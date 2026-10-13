@@ -91,7 +91,7 @@ class GoogleDriveService @Inject constructor(
         return try {
             val result = Identity.getAuthorizationClient(context)
                 .getAuthorizationResultFromIntent(data)
-            logger.i("GoogleOAuth", "Authorization result returned scopes: ${result.grantedScopes.orEmpty()}")
+            logger.i("GoogleOAuth", "Authorization result received")
             consumeGenerativeLanguageAuthorizationResult(result, includeFiles)
         } catch (e: ApiException) {
             logger.e("GoogleOAuth", "Authorization result failed with status: ${e.statusCode}", e)
@@ -106,7 +106,7 @@ class GoogleDriveService @Inject constructor(
         return try {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
-            logger.i("Drive", "Sign-in successful for: ${account?.email}")
+            logger.i("Drive", "Sign-in successful")
             
             account?.email?.let { email ->
                 _isSignedIn.value = true

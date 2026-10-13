@@ -38,7 +38,7 @@ class OpenAiProvider @Inject constructor(
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
         try {
-            logger.i("OpenAI", "Starting extraction for URL: $videoUrl")
+            logger.i("OpenAI", "Starting video extraction")
             val apiKey = preferencesRepository.openAiApiKey.first()
             if (apiKey.isBlank()) {
                 logger.e("OpenAI", "API key not configured")
@@ -47,7 +47,7 @@ class OpenAiProvider @Inject constructor(
 
             val modelId = preferencesRepository.llmModel.first()
             val model = if (modelId.isNotBlank()) modelId else LlmModels.GPT_4O.id
-            logger.i("OpenAI", "Using model: $model")
+            logger.i("OpenAI", "Model selected")
 
             val response = api.extractRecipe(
                 authorization = "Bearer $apiKey",
@@ -94,11 +94,11 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                 logger.e("OpenAI", "Empty response from API")
                 return@withContext Result.failure(Exception("No response from OpenAI"))
             }
-            logger.d("OpenAI", "Raw response: ${content.take(500)}")
+            logger.d("OpenAI", "Provider response received")
 
             val cleanJson = content.replace("```json", "").replace("```", "").trim()
             val recipe = parseRecipeFromJson(cleanJson, videoUrl)
-            logger.i("OpenAI", "Successfully extracted recipe: ${recipe.title}")
+            logger.i("OpenAI", "Recipe extraction succeeded")
             Result.success(recipe)
         } catch (e: Exception) {
             logger.e("OpenAI", "Extraction failed", e)

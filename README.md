@@ -51,7 +51,9 @@ See Google's [Android authorization guide](https://developer.android.com/identit
 
 ### Credential Storage
 
-API keys are stored as Android Keystore-backed AES-256-GCM encrypted DataStore values. Existing plaintext fields are migrated atomically after successful encryption; key loss/tampering fails closed and is reported in Settings. Encryption failure preserves legacy data for recovery but providers never read that plaintext fallback. Reinstall/device transfer may require entering API keys again; OAuth bearer tokens are not persisted. See the [credential-security audit](.planning/audits/2026-10-13-credential-security.md). Logging and backup hardening remain in progress; this is not a production-readiness certification.
+API keys are stored as Android Keystore-backed AES-256-GCM encrypted DataStore values. Existing plaintext fields are migrated atomically after successful encryption; key loss/tampering fails closed and is reported in Settings. Encryption failure preserves legacy data for recovery but providers never read that plaintext fallback. Reinstall/device transfer may require entering API keys again; OAuth bearer tokens are not persisted. See the [credential-security audit](.planning/audits/2026-10-13-credential-security.md).
+
+Diagnostics omit recipe/account/response contents, sanitize common secrets, limit retention/export and discard old unknown diagnostic contents at privacy upgrade. Sharing exposes only explicit diagnostic exports. Android backup rules allow only recipe database/WAL data, not keys/settings/logs; cloud backup requires encryption support. Actual system-backup recovery is not live-verified. See the [privacy/backup-boundary audit](.planning/audits/2026-10-13-diagnostic-and-backup-boundaries.md). The dedicated Drive backup/restore workflow is still being implemented; these checks are not a production-readiness certification.
 
 ```text
 app/src/main/java/com/recipegrabber/

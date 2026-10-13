@@ -11,9 +11,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileWriter
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,34 +30,45 @@ object LogLevel {
 class AppLogger @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val logDir by lazy { File(context.filesDir, "logs").also { it.mkdirs() } }
-    private val currentLogFile by lazy { File(logDir, "app.log") }
+    private val store by lazy {
+        val legacyExport = File(context.cacheDir, "recipegrabber-logs.txt")
+        if (legacyExport.isFile) legacyExport.writeText("Legacy diagnostic export removed during privacy upgrade.\n")
+        PrivateLogStore(File(context.filesDir, "logs"), maxExportBytes = 255 * 1024)
+    }
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.GERMANY)
-    private val fileDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.GERMANY)
     private val buffer = ConcurrentLinkedQueue<String>()
     private val isWriting = AtomicBoolean(false)
-    private val maxLogSize = 5 * 1024 * 1024L
     private val loggerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val fileMutex = Mutex()
+    private val fileMutex = filesMutex
+
+    init {
+        loggerScope.launch {
+            try {
+                fileMutex.withLock { store.export() }
+            } catch (_: Exception) {
+                android.util.Log.w("RG-App", "Diagnostic storage unavailable")
+            }
+        }
+    }
 
     fun d(tag: String, message: String) = log(LogLevel.DEBUG, tag, message)
     fun i(tag: String, message: String) = log(LogLevel.INFO, tag, message)
     fun w(tag: String, message: String) = log(LogLevel.WARN, tag, message)
     fun e(tag: String, message: String, throwable: Throwable? = null) {
-        val stackTrace = throwable?.let {
-            val sw = StringWriter()
-            it.printStackTrace(PrintWriter(sw))
-            "\n${sw}"
-        } ?: ""
-        log(LogLevel.ERROR, tag, "$message$stackTrace")
+        val failure = throwable?.let { " (${it.javaClass.simpleName})" }.orEmpty()
+        log(LogLevel.ERROR, tag, message + failure)
     }
 
     private fun log(level: String, tag: String, message: String) {
         val timestamp = format(dateFormat, Date())
-        val threadName = Thread.currentThread().name
-        val logLine = "$timestamp [$level] [$threadName] $tag: $message"
-        android.util.Log.println(androidPriority(level), "RG-$tag", message)
-        buffer.add(logLine)
+        val safeTag = DiagnosticSanitizer.safeTag(tag)
+        val safe = DiagnosticSanitizer.sanitize(message)
+        val logLine = "$timestamp [$level] $safeTag: $safe"
+        android.util.Log.println(androidPriority(level), "RG-$safeTag", safe)
+        synchronized(buffer) {
+            if (buffer.size >= 256) buffer.poll()
+            buffer.add(logLine)
+        }
         flushIfNeeded()
     }
 
@@ -70,8 +78,10 @@ class AppLogger @Inject constructor(
                 try {
                     fileMutex.withLock {
                         flushBufferLocked()
-                        rotateIfNeededLocked()
                     }
+                } catch (_: Exception) {
+                    buffer.clear()
+                    android.util.Log.w("RG-App", "Diagnostic storage unavailable")
                 } finally {
                     isWriting.set(false)
                     if (buffer.isNotEmpty()) {
@@ -83,69 +93,40 @@ class AppLogger @Inject constructor(
     }
 
     private fun flushBufferLocked() {
-        val writer = FileWriter(currentLogFile, true)
-        writer.use { w ->
-            while (buffer.isNotEmpty()) {
-                val line = buffer.poll() ?: break
-                w.write(line)
-                w.write("\n")
-            }
-        }
-    }
-
-    private fun rotateIfNeededLocked() {
-        if (currentLogFile.length() > maxLogSize) {
-            val date = format(fileDateFormat, Date())
-            val rotated = File(logDir, "app-$date.log")
-            if (rotated.exists()) rotated.delete()
-            currentLogFile.renameTo(rotated)
+        repeat(256) {
+            val line = buffer.poll() ?: return
+            store.append(line)
         }
     }
 
     suspend fun getLogContent(): String = withContext(Dispatchers.IO) {
         fileMutex.withLock {
             flushBufferLocked()
-            val sb = StringBuilder()
-            sb.appendLine("=== RecipeGrabber Log Export ===")
-            sb.appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
-            sb.appendLine("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
-            sb.appendLine("App Version: ${getAppVersion()}")
-            sb.appendLine("Exported: ${format(dateFormat, Date())}")
-            sb.appendLine("================================\n")
-
-            val logFiles = logDir.listFiles()
-                ?.filter { it.name.endsWith(".log") }
-                ?.sortedBy { it.name }
-                ?: emptyList()
-
-            for (file in logFiles) {
-                sb.appendLine("--- ${file.name} ---")
-                sb.appendLine(file.readText())
-                sb.appendLine()
-            }
-
-            sb.toString()
+            val header = "=== RecipeGrabber Diagnostics ===\nAndroid SDK: ${android.os.Build.VERSION.SDK_INT}\nApp: ${getAppVersion()}\n\n"
+            header + store.export()
         }
     }
 
     suspend fun clearLogs(): Boolean = withContext(Dispatchers.IO) {
         fileMutex.withLock {
-            logDir.listFiles()?.forEach { it.delete() }
             buffer.clear()
+            store.clear()
         }
         true
     }
 
-    fun createShareIntent(): Intent {
-        val logContent = kotlinx.coroutines.runBlocking { getLogContent() }
-        val file = File(context.cacheDir, "recipegrabber-logs.txt")
+    suspend fun createShareIntent(): Intent = withContext(Dispatchers.IO) {
+        val logContent = getLogContent()
+        val directory = File(context.cacheDir, "diagnostics")
+        check(directory.isDirectory || directory.mkdirs()) { "Diagnostic export unavailable" }
+        val file = File(directory, "recipegrabber-logs.txt")
         file.writeText(logContent)
         val uri = androidx.core.content.FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
             file
         )
-        return Intent(Intent.ACTION_SEND).apply {
+        Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "RecipeGrabber Logs")
             putExtra(Intent.EXTRA_STREAM, uri)
@@ -156,7 +137,7 @@ class AppLogger @Inject constructor(
     private fun getAppVersion(): String {
         return try {
             val pi = context.packageManager.getPackageInfo(context.packageName, 0)
-            "${pi.versionName} (${pi.longVersionCode})"
+            DiagnosticSanitizer.sanitize("${pi.versionName} (${pi.longVersionCode})").take(64)
         } catch (e: Exception) {
             "unknown"
         }
@@ -179,6 +160,7 @@ class AppLogger @Inject constructor(
     }
 
     companion object {
+        private val filesMutex = Mutex()
         @Volatile
         private var INSTANCE: AppLogger? = null
 
