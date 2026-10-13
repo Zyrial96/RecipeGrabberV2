@@ -7,6 +7,13 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class GoogleAiAuthorizationRequestFactoryTest {
+    @Test
+    fun `files permission is requested only explicitly and excludes drive and cloud platform`() {
+        assertEquals(
+            listOf(GoogleDriveService.GENERATIVE_LANGUAGE_SCOPE, "https://www.googleapis.com/auth/devstorage.read_only"),
+            GoogleAiAuthorizationRequestFactory.generativeLanguageScopeUris(includeFiles = true)
+        )
+    }
 
     @Test
     @DisplayName("Should request the Gemini OAuth scope through AuthorizationClient")

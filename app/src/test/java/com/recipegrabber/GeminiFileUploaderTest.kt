@@ -89,7 +89,8 @@ class GeminiFileUploaderTest {
     @Test fun `youtube avoids download upload and cleanup entirely`() = runTest {
         val downloads = Endpoint()
         val api = Endpoint()
-        uploadOnly(downloads, api, cache).withVideoBody("https://youtu.be/example", "Extract", auth) {
+        uploadOnly(downloads, api, cache).withVideoBody("https://youtu.be/example", "Extract", auth,
+            filesAuthorization = { error("YouTube must not request Files permission") }) {
             assertTrue(it.contains("https://youtu.be/example"))
         }
         assertTrue(downloads.requests.isEmpty() && api.requests.isEmpty())
@@ -99,7 +100,8 @@ class GeminiFileUploaderTest {
     @Test fun `small video is inline without Files API access or extra scope`() = runTest {
         val downloads = Endpoint(Reply("video"))
         val api = Endpoint()
-        GeminiFileUploader(downloads, api, cache).withVideoBody(source, "Extract", auth) { body ->
+        GeminiFileUploader(downloads, api, cache).withVideoBody(source, "Extract", auth,
+            filesAuthorization = { error("Inline videos must not request Files permission") }) { body ->
             val part = JsonParser.parseString(body).asJsonObject.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")[0].asJsonObject
             assertFalse(part.has("fileData"))
             assertEquals("video/webm", part.getAsJsonObject("inlineData").get("mimeType").asString)
@@ -115,6 +117,30 @@ class GeminiFileUploaderTest {
             .withVideoBody(source, "Extract", auth) { assertFalse(it.contains("inlineData")) }
         assertEquals("POST", api.requests.first().method)
         assertEquals("DELETE", api.requests.last().method)
+        assertEquals(0, cache.listFiles()!!.size)
+    }
+
+    @Test fun `large video uses the separate files grant for upload polling and cleanup`() = runTest {
+        val api = api("PROCESSING")
+        var authorizations = 0
+        uploadOnly(Endpoint(Reply("video")), api, cache, pollMillis = 1).withVideoBody(source, "Extract", auth,
+            filesAuthorization = {
+                authorizations++
+                GeminiRequestAuth.OAuth("synthetic-files-token")
+            }) { assertFalse(it.contains("inlineData")) }
+        assertEquals(1, authorizations)
+        assertTrue(api.requests.all { it.header("Authorization") == "Bearer synthetic-files-token" })
+        assertEquals(0, cache.listFiles()!!.size)
+    }
+
+    @Test fun `missing files consent aborts before upload and removes the downloaded temporary`() = runTest {
+        val api = Endpoint()
+        val result = runCatching {
+            uploadOnly(Endpoint(Reply("video")), api, cache).withVideoBody(source, "Extract", auth,
+                filesAuthorization = { throw IllegalStateException("Permission required") }) { error("Unexpected inference") }
+        }
+        assertEquals("Permission required", result.exceptionOrNull()?.message)
+        assertTrue(api.requests.isEmpty())
         assertEquals(0, cache.listFiles()!!.size)
     }
 

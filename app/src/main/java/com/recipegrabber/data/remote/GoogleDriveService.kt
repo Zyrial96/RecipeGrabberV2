@@ -20,6 +20,7 @@ import com.google.api.services.drive.model.File
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.recipegrabber.data.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,10 +60,10 @@ class GoogleDriveService @Inject constructor(
         return buildSignInClient(includeGenerativeLanguage).signInIntent
     }
 
-    suspend fun authorizeGenerativeLanguage(): Result<GoogleAiAuthorizationStart> = withContext(Dispatchers.IO) {
+    suspend fun authorizeGenerativeLanguage(includeFiles: Boolean = false): Result<GoogleAiAuthorizationStart> = withContext(Dispatchers.IO) {
         try {
             val result = Identity.getAuthorizationClient(context)
-                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest())
+                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest(includeFiles))
                 .await()
 
             if (result.hasResolution()) {
@@ -72,9 +73,11 @@ class GoogleDriveService @Inject constructor(
                 Result.success(GoogleAiAuthorizationStart.NeedsUserConsent(pendingIntent))
             } else {
                 logger.i("GoogleOAuth", "Generative Language OAuth was already authorized")
-                consumeGenerativeLanguageAuthorizationResult(result)
+                consumeGenerativeLanguageAuthorizationResult(result, includeFiles)
                     .map { GoogleAiAuthorizationStart.Authorized(it.email) }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: ApiException) {
             logger.e("GoogleOAuth", "Failed to start authorization with status: ${e.statusCode}", e)
             Result.failure(googleOAuthFailure("Google OAuth authorization failed", e))
@@ -84,12 +87,12 @@ class GoogleDriveService @Inject constructor(
         }
     }
 
-    fun handleGenerativeLanguageAuthorizationResult(data: Intent?): Result<GoogleAiAuthorization> {
+    fun handleGenerativeLanguageAuthorizationResult(data: Intent?, includeFiles: Boolean = false): Result<GoogleAiAuthorization> {
         return try {
             val result = Identity.getAuthorizationClient(context)
                 .getAuthorizationResultFromIntent(data)
             logger.i("GoogleOAuth", "Authorization result returned scopes: ${result.grantedScopes.orEmpty()}")
-            consumeGenerativeLanguageAuthorizationResult(result)
+            consumeGenerativeLanguageAuthorizationResult(result, includeFiles)
         } catch (e: ApiException) {
             logger.e("GoogleOAuth", "Authorization result failed with status: ${e.statusCode}", e)
             Result.failure(googleOAuthFailure("Google OAuth authorization failed", e))
@@ -151,17 +154,21 @@ class GoogleDriveService @Inject constructor(
         }
     }
 
-    suspend fun getGenerativeLanguageAccessToken(): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun getGenerativeLanguageAccessToken(includeFiles: Boolean = false): Result<String> = withContext(Dispatchers.IO) {
         try {
             val result = Identity.getAuthorizationClient(context)
-                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest())
+                .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest(includeFiles))
                 .await()
 
             if (result.hasResolution()) {
-                return@withContext Result.failure(Exception("Google AI OAuth permission required"))
+                return@withContext Result.failure(Exception(if (includeFiles) {
+                    "Grosse Videos benoetigen eine zusaetzliche Freigabe. In Settings 'Authorize video uploads' waehlen."
+                } else "Google AI OAuth permission required"))
             }
 
-            consumeGenerativeLanguageAuthorizationResult(result).map { it.accessToken }
+            consumeGenerativeLanguageAuthorizationResult(result, includeFiles).map { it.accessToken }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: ApiException) {
             logger.e("GoogleOAuth", "Failed to get Generative Language access token with status: ${e.statusCode}", e)
             Result.failure(googleOAuthFailure("Google OAuth access token failed", e))
@@ -236,6 +243,7 @@ class GoogleDriveService @Inject constructor(
 
     companion object {
         const val GENERATIVE_LANGUAGE_SCOPE = "https://www.googleapis.com/auth/generative-language.retriever"
+        const val GEMINI_FILES_SCOPE = "https://www.googleapis.com/auth/devstorage.read_only"
     }
 }
 
@@ -250,10 +258,11 @@ data class GoogleAiAuthorization(
 )
 
 private fun consumeGenerativeLanguageAuthorizationResult(
-    result: AuthorizationResult
+    result: AuthorizationResult,
+    includeFiles: Boolean = false
 ): Result<GoogleAiAuthorization> {
     val grantedScopes = result.grantedScopes.orEmpty()
-    if (GoogleDriveService.GENERATIVE_LANGUAGE_SCOPE !in grantedScopes) {
+    if (!grantedScopes.containsAll(GoogleAiAuthorizationRequestFactory.generativeLanguageScopeUris(includeFiles))) {
         return Result.failure(Exception("Google AI OAuth scope was not granted"))
     }
 

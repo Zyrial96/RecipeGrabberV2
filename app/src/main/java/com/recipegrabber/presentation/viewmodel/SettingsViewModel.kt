@@ -187,10 +187,10 @@ class SettingsViewModel @Inject constructor(
         return googleDriveService.getSignInIntent(includeGenerativeLanguage = false)
     }
 
-    fun startGoogleAiAuthorization(onUserConsentRequired: (PendingIntent) -> Unit) {
+    fun startGoogleAiAuthorization(includeFiles: Boolean = false, onUserConsentRequired: (PendingIntent) -> Unit) {
         viewModelScope.launch {
             _message.value = null
-            val result = googleDriveService.authorizeGenerativeLanguage()
+            val result = googleDriveService.authorizeGenerativeLanguage(includeFiles)
             result.fold(
                 onSuccess = { start ->
                     when (start) {
@@ -201,7 +201,7 @@ class SettingsViewModel @Inject constructor(
                             start.email?.let { preferencesRepository.setGoogleAccountEmail(it) }
                             preferencesRepository.setGeminiOAuthAuthorized(true)
                             preferencesRepository.setGeminiAuthMode(GeminiAuthMode.GOOGLE_OAUTH)
-                            _message.value = "Google OAuth enabled for Gemini"
+                            _message.value = if (includeFiles) "Google video uploads authorized" else "Google OAuth enabled for Gemini"
                         }
                     }
                 },
@@ -238,23 +238,23 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun handleGoogleAiAuthorizationResult(resultCode: Int, data: Intent?) {
+    fun handleGoogleAiAuthorizationResult(resultCode: Int, data: Intent?, includeFiles: Boolean = false) {
         viewModelScope.launch {
             _message.value = null
             logger.i("GoogleOAuth", "Authorization activity finished with resultCode=$resultCode, hasData=${data != null}")
-            if (data == null) {
+            if (resultCode != android.app.Activity.RESULT_OK || data == null) {
                 logger.w("GoogleOAuth", "Authorization activity did not return result data")
                 _message.value = "Google OAuth cancelled"
                 return@launch
             }
 
-            val result = googleDriveService.handleGenerativeLanguageAuthorizationResult(data)
+            val result = googleDriveService.handleGenerativeLanguageAuthorizationResult(data, includeFiles)
             result.fold(
                 onSuccess = { authorization ->
                     authorization.email?.let { preferencesRepository.setGoogleAccountEmail(it) }
                     preferencesRepository.setGeminiOAuthAuthorized(true)
                     preferencesRepository.setGeminiAuthMode(GeminiAuthMode.GOOGLE_OAUTH)
-                    _message.value = "Google OAuth enabled for Gemini"
+                    _message.value = if (includeFiles) "Google video uploads authorized" else "Google OAuth enabled for Gemini"
                 },
                 onFailure = { error ->
                     logger.e("GoogleOAuth", "Failed to finish Google AI authorization", error)

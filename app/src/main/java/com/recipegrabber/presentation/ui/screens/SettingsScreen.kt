@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Help
@@ -86,6 +88,11 @@ fun SettingsScreen(
     ) { result ->
         viewModel.handleGoogleAiAuthorizationResult(result.resultCode, result.data)
     }
+    val googleFilesAuthorizationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        viewModel.handleGoogleAiAuthorizationResult(result.resultCode, result.data, includeFiles = true)
+    }
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
@@ -125,6 +132,13 @@ fun SettingsScreen(
                 AiProviderSettings(
                     uiState = uiState,
                     viewModel = viewModel,
+                    onGoogleFilesSignIn = {
+                        viewModel.startGoogleAiAuthorization(includeFiles = true) { pendingIntent ->
+                            googleFilesAuthorizationLauncher.launch(
+                                IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                            )
+                        }
+                    },
                     onGoogleAiSignIn = {
                         viewModel.startGoogleAiAuthorization { pendingIntent ->
                             googleAiAuthorizationLauncher.launch(
@@ -183,9 +197,28 @@ fun SettingsScreen(
 fun AiProviderSettings(
     uiState: SettingsUiState,
     viewModel: SettingsViewModel,
-    onGoogleAiSignIn: () -> Unit
+    onGoogleAiSignIn: () -> Unit,
+    onGoogleFilesSignIn: () -> Unit
 ) {
     var showApiKey by remember { mutableStateOf(false) }
+    var showFilesConsent by remember { mutableStateOf(false) }
+
+    if (showFilesConsent) {
+        AlertDialog(
+            onDismissRequest = { showFilesConsent = false },
+            title = { Text("Optional Google permission") },
+            text = { Text("Google requests access to view Cloud Storage data for video uploads. This additional permission is not required for YouTube or small videos.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFilesConsent = false
+                    onGoogleFilesSignIn()
+                }) { Text("Continue") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFilesConsent = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Provider Selection
@@ -298,6 +331,14 @@ fun AiProviderSettings(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (uiState.geminiOAuthAuthorized) "Reconnect Google OAuth" else "Connect Google OAuth")
+                    }
+                    OutlinedButton(
+                        onClick = { showFilesConsent = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Authorize video uploads")
                     }
                 }
             }

@@ -71,7 +71,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
 
             GeminiRequestFactory.buildVideoBody(videoUrl, prompt)
 
-            val requestAuth = when (preferencesRepository.geminiAuthMode.first()) {
+            var requestAuth = when (preferencesRepository.geminiAuthMode.first()) {
                 GeminiAuthMode.API_KEY -> {
                     val apiKey = preferencesRepository.geminiApiKey.first()
                     if (apiKey.isBlank()) {
@@ -89,7 +89,15 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                 }
             }
 
-            GeminiFileUploader.create(client, context.cacheDir).withVideoBody(videoUrl, prompt, requestAuth) { preparedBody ->
+            GeminiFileUploader.create(client, context.cacheDir).withVideoBody(videoUrl, prompt, requestAuth,
+                filesAuthorization = {
+                    if (requestAuth is GeminiRequestAuth.OAuth) {
+                        requestAuth = GeminiRequestAuth.OAuth(
+                            googleDriveService.getGenerativeLanguageAccessToken(includeFiles = true).getOrThrow()
+                        )
+                    }
+                    requestAuth
+                }, onFilesReady = { logger.i("Gemini", "Video uploaded to Gemini Files and ACTIVE") }) { preparedBody ->
                 val request = GeminiRequestFactory.buildGenerateContentRequest(model, preparedBody, requestAuth)
                 client.newCall(request).consumeGeminiResponse { response ->
                     if (!response.isSuccessful) {

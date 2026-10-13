@@ -36,12 +36,15 @@ internal class GeminiFileUploader(
         require(inlineLimitBytes in 0..8L * 1024 * 1024) { "Inline video limit exceeds the mobile memory budget." }
     }
 
-    suspend fun <T> withVideoBody(source: String, prompt: String, auth: GeminiRequestAuth, consume: suspend (String) -> T): T {
+    suspend fun <T> withVideoBody(source: String, prompt: String, auth: GeminiRequestAuth,
+        filesAuthorization: suspend () -> GeminiRequestAuth = { auth },
+        onFilesReady: () -> Unit = {}, consume: suspend (String) -> T): T {
         val body = JsonParser.parseString(GeminiRequestFactory.buildVideoBody(source, prompt)).asJsonObject
         val media = body.getAsJsonArray("contents")[0].asJsonObject.getAsJsonArray("parts")[0].asJsonObject.getAsJsonObject("fileData")
         val mime = media.get("mimeType")?.asString ?: return consume(body.toString())
         val temporary = File.createTempFile("recipe-video-", ".media", cacheDir)
         var remoteName: String? = null
+        var uploadAuth = auth
         try {
             withTimeout(preparationTimeoutMillis) {
                 download(source.toHttpUrl(), temporary)
@@ -54,8 +57,9 @@ internal class GeminiFileUploader(
                         .set(0, JsonObject().apply { add("inlineData", inline) })
                     return@withTimeout
                 }
+                uploadAuth = filesAuthorization()
                 val metadata = """{"file":{"display_name":"RecipeGrabber video"}}"""
-                val start = authorized(Request.Builder().url(apiRoot.resolve("upload/v1beta/files")!!), auth)
+                val start = authorized(Request.Builder().url(apiRoot.resolve("upload/v1beta/files")!!), uploadAuth)
                     .header("X-Goog-Upload-Protocol", "resumable")
                     .header("X-Goog-Upload-Command", "start")
                     .header("X-Goog-Upload-Header-Content-Length", temporary.length().toString())
@@ -66,7 +70,7 @@ internal class GeminiFileUploader(
                     requireNotNull(response.header("X-Goog-Upload-URL")) { "Google hat keine Upload-Adresse geliefert." }.toHttpUrl()
                 }
                 require(sameOrigin(session, apiRoot)) { "Unerwartete Video-Upload-Adresse." }
-                val upload = authorized(Request.Builder().url(session), auth)
+                val upload = authorized(Request.Builder().url(session), uploadAuth)
                     .header("X-Goog-Upload-Offset", "0")
                     .header("X-Goog-Upload-Command", "upload, finalize")
                     .post(temporary.asRequestBody(mime.toMediaType())).build()
@@ -75,13 +79,14 @@ internal class GeminiFileUploader(
                 remoteName = checkedName(file)
                 while (file.get("state")?.asString == "PROCESSING") {
                     delay(pollMillis)
-                    file = readJson(authorized(Request.Builder().url(apiRoot.resolve("v1beta/$remoteName")!!), auth).get().build())
+                    file = readJson(authorized(Request.Builder().url(apiRoot.resolve("v1beta/$remoteName")!!), uploadAuth).get().build())
                     require(checkedName(file) == remoteName) { "Unerwartete Google-Dateiantwort." }
                 }
                 require(file.get("state")?.asString == "ACTIVE") { "Google konnte die Videodatei nicht verarbeiten." }
                 val uri = requireNotNull(file.get("uri")?.asString).toHttpUrl()
                 require(sameOrigin(uri, apiRoot) && uri.encodedPath == "/v1beta/$remoteName") { "Unerwartete Google-Dateiadresse." }
                 media.addProperty("fileUri", uri.toString())
+                onFilesReady()
             }
             return consume(body.toString())
         } finally {
@@ -90,7 +95,7 @@ internal class GeminiFileUploader(
                 // Delete only the file created by this request; cancellation must not skip cleanup.
                 withContext(NonCancellable) {
                     try {
-                        cleanupApi.newCall(authorized(Request.Builder().url(apiRoot.resolve("v1beta/$name")!!), auth).delete().build())
+                        cleanupApi.newCall(authorized(Request.Builder().url(apiRoot.resolve("v1beta/$name")!!), uploadAuth).delete().build())
                             .consumeGeminiResponse { Unit }
                     } catch (_: Exception) {
                         // Google expires uploaded files; cleanup failure must not replace the recipe result.
