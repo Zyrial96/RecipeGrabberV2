@@ -127,6 +127,13 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (uiState.credentialsUnavailable) {
+                Text(
+                    "Saved API keys are unavailable. Enter them again or restart to retry migration.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             // AI Provider Section
             SettingsSection(title = "AI Provider", icon = Icons.Default.SmartToy) {
                 AiProviderSettings(

@@ -49,6 +49,10 @@ See Google's [Android authorization guide](https://developer.android.com/identit
 
 ## Code Map
 
+### Credential Storage
+
+API keys are stored as Android Keystore-backed AES-256-GCM encrypted DataStore values. Existing plaintext fields are migrated atomically after successful encryption; key loss/tampering fails closed and is reported in Settings. Encryption failure preserves legacy data for recovery but providers never read that plaintext fallback. Reinstall/device transfer may require entering API keys again; OAuth bearer tokens are not persisted. See the [credential-security audit](.planning/audits/2026-10-13-credential-security.md). Logging and backup hardening remain in progress; this is not a production-readiness certification.
+
 ```text
 app/src/main/java/com/recipegrabber/
   data/local/          Room entities, DAOs and database

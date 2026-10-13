@@ -7,20 +7,49 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.recipegrabber.data.security.AndroidKeystoreSecretCipher
+import com.recipegrabber.data.security.CredentialField
+import com.recipegrabber.data.security.CredentialFields
+import com.recipegrabber.data.security.CredentialMigration
+import com.recipegrabber.data.security.readCredential
+import com.recipegrabber.data.security.credentialsUnavailable
 import com.recipegrabber.domain.llm.GeminiAuthMode
 import com.recipegrabber.domain.llm.ProviderType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    produceMigrations = { listOf(CredentialMigration(AndroidKeystoreSecretCipher())) }
+)
 
 @Singleton
 class PreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    private val secretCipher = AndroidKeystoreSecretCipher()
+
+    val credentialsUnavailable: Flow<Boolean> = context.dataStore.data.map {
+        credentialsUnavailable(it, secretCipher)
+    }.flowOn(Dispatchers.IO)
+
+    private fun credential(field: CredentialField): Flow<String> = context.dataStore.data.map {
+        readCredential(it, field, secretCipher)
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun setCredential(field: CredentialField, value: String) = withContext(Dispatchers.IO) {
+        val encrypted = if (value.isEmpty()) null else secretCipher.encrypt(value, field.encrypted.name)
+        context.dataStore.edit {
+            if (encrypted == null) it.remove(field.encrypted) else it[field.encrypted] = encrypted
+            it.remove(field.legacy)
+        }
+    }
 
     private object PreferencesKeys {
         // Onboarding
@@ -31,13 +60,6 @@ class PreferencesRepository @Inject constructor(
         val LLM_MODEL = stringPreferencesKey("llm_model")
         val GEMINI_AUTH_MODE = stringPreferencesKey("gemini_auth_mode")
         val GEMINI_OAUTH_AUTHORIZED = booleanPreferencesKey("gemini_oauth_authorized")
-        
-        // API Keys
-        val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
-        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
-        val CLAUDE_API_KEY = stringPreferencesKey("claude_api_key")
-        val KIMI_API_KEY = stringPreferencesKey("kimi_api_key")
-        val APIFY_API_KEY = stringPreferencesKey("apify_api_key")
         
         // Google Drive
         val DRIVE_SYNC_ENABLED = booleanPreferencesKey("drive_sync_enabled")
@@ -72,36 +94,24 @@ class PreferencesRepository @Inject constructor(
     }
     
     // Claude
-    val claudeApiKey: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.CLAUDE_API_KEY] ?: ""
-    }
+    val claudeApiKey: Flow<String> = credential(CredentialFields.claude)
     
     suspend fun setClaudeApiKey(apiKey: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.CLAUDE_API_KEY] = apiKey
-        }
+        setCredential(CredentialFields.claude, apiKey)
     }
     
     // Kimi
-    val kimiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.KIMI_API_KEY] ?: ""
-    }
+    val kimiApiKey: Flow<String> = credential(CredentialFields.kimi)
     
     suspend fun setKimiApiKey(apiKey: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.KIMI_API_KEY] = apiKey
-        }
+        setCredential(CredentialFields.kimi, apiKey)
     }
     
     // Apify
-    val apifyApiKey: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.APIFY_API_KEY] ?: ""
-    }
+    val apifyApiKey: Flow<String> = credential(CredentialFields.apify)
     
     suspend fun setApifyApiKey(apiKey: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.APIFY_API_KEY] = apiKey
-        }
+        setCredential(CredentialFields.apify, apiKey)
     }
 
     val llmProviderType: Flow<ProviderType> = context.dataStore.data.map { preferences ->
@@ -126,13 +136,9 @@ class PreferencesRepository @Inject constructor(
         preferences[PreferencesKeys.GEMINI_OAUTH_AUTHORIZED] ?: false
     }
 
-    val openAiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.OPENAI_API_KEY] ?: ""
-    }
+    val openAiApiKey: Flow<String> = credential(CredentialFields.openAi)
 
-    val geminiApiKey: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.GEMINI_API_KEY] ?: ""
-    }
+    val geminiApiKey: Flow<String> = credential(CredentialFields.gemini)
 
     val driveSyncEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.DRIVE_SYNC_ENABLED] ?: false
@@ -173,15 +179,11 @@ class PreferencesRepository @Inject constructor(
     }
 
     suspend fun setOpenAiApiKey(apiKey: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.OPENAI_API_KEY] = apiKey
-        }
+        setCredential(CredentialFields.openAi, apiKey)
     }
 
     suspend fun setGeminiApiKey(apiKey: String) {
-        context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.GEMINI_API_KEY] = apiKey
-        }
+        setCredential(CredentialFields.gemini, apiKey)
     }
 
     suspend fun setDriveSyncEnabled(enabled: Boolean) {

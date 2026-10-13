@@ -25,6 +25,7 @@ data class SettingsUiState(
     val llmModel: String = LlmModels.GPT_4O.id,
     val geminiAuthMode: GeminiAuthMode = GeminiAuthMode.API_KEY,
     val geminiOAuthAuthorized: Boolean = false,
+    val credentialsUnavailable: Boolean = false,
     val openAiApiKey: String = "",
     val geminiApiKey: String = "",
     val claudeApiKey: String = "",
@@ -50,6 +51,7 @@ class SettingsViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     private val _showApifyHelp = MutableStateFlow(false)
     private val _uiState = MutableStateFlow(SettingsUiState(isLoading = true))
+    private val credentialSaveJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
@@ -65,6 +67,11 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesRepository.geminiOAuthAuthorized.collect { _uiState.value = _uiState.value.copy(geminiOAuthAuthorized = it) }
+        }
+        viewModelScope.launch {
+            preferencesRepository.credentialsUnavailable.collect {
+                _uiState.value = _uiState.value.copy(credentialsUnavailable = it)
+            }
         }
         viewModelScope.launch {
             preferencesRepository.openAiApiKey.collect { _uiState.value = _uiState.value.copy(openAiApiKey = it) }
@@ -137,37 +144,46 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setOpenAiApiKey(apiKey: String) {
-        viewModelScope.launch {
+        saveCredential("OpenAI") {
             preferencesRepository.setOpenAiApiKey(apiKey)
-            _message.value = "OpenAI API key saved"
         }
     }
 
     fun setGeminiApiKey(apiKey: String) {
-        viewModelScope.launch {
+        saveCredential("Gemini") {
             preferencesRepository.setGeminiApiKey(apiKey)
-            _message.value = "Gemini API key saved"
         }
     }
 
     fun setClaudeApiKey(apiKey: String) {
-        viewModelScope.launch {
+        saveCredential("Claude") {
             preferencesRepository.setClaudeApiKey(apiKey)
-            _message.value = "Claude API key saved"
         }
     }
 
     fun setKimiApiKey(apiKey: String) {
-        viewModelScope.launch {
+        saveCredential("Kimi") {
             preferencesRepository.setKimiApiKey(apiKey)
-            _message.value = "Kimi API key saved"
         }
     }
 
     fun setApifyApiKey(apiKey: String) {
-        viewModelScope.launch {
+        saveCredential("Apify") {
             preferencesRepository.setApifyApiKey(apiKey)
-            _message.value = "Apify API key saved"
+        }
+    }
+
+    private fun saveCredential(provider: String, save: suspend () -> Unit) {
+        credentialSaveJobs.remove(provider)?.cancel()
+        credentialSaveJobs[provider] = viewModelScope.launch {
+            try {
+                save()
+                _message.value = "$provider API key saved"
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _message.value = "Could not securely save $provider API key"
+            }
         }
     }
 

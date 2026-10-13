@@ -46,12 +46,14 @@ fun ApifyStep(
     val apiKey by viewModel.apiKey.collectAsState()
     val isValid by viewModel.isValid.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val storageError by viewModel.storageError.collectAsState()
     var showHelpDialog by remember { mutableStateOf(false) }
     var showKey by remember { mutableStateOf(false) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        storageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         StepHeader(
             icon = Icons.Default.Key,
             title = "Apify Konfiguration",
@@ -97,7 +99,7 @@ fun ApifyStep(
             else -> {
                 Button(
                     onClick = onNext,
-                    enabled = isValid,
+                    enabled = isValid && storageError == null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Weiter")

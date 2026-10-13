@@ -34,6 +34,8 @@ class OnboardingLlmViewModel @Inject constructor(
 
     private val _showKey = MutableStateFlow(false)
     val showKey: StateFlow<Boolean> = _showKey.asStateFlow()
+    private val _storageError = MutableStateFlow<String?>(null)
+    val storageError: StateFlow<String?> = _storageError.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -76,7 +78,14 @@ class OnboardingLlmViewModel @Inject constructor(
         viewModelScope.launch {
             _apiKey.debounce(500).collect { key ->
                 if (key.length >= 10) {
-                    saveApiKey(key)
+                    try {
+                        saveApiKey(key)
+                        _storageError.value = null
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        _storageError.value = "API-Key konnte nicht sicher gespeichert werden."
+                    }
                 }
             }
         }

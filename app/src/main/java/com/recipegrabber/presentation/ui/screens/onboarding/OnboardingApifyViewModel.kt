@@ -26,6 +26,8 @@ class OnboardingApifyViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val _storageError = MutableStateFlow<String?>(null)
+    val storageError: StateFlow<String?> = _storageError.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -39,7 +41,14 @@ class OnboardingApifyViewModel @Inject constructor(
         viewModelScope.launch {
             _apiKey.debounce(500).collect { key ->
                 if (key.length >= 20) {
-                    preferencesRepository.setApifyApiKey(key)
+                    try {
+                        preferencesRepository.setApifyApiKey(key)
+                        _storageError.value = null
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        _storageError.value = "API-Token konnte nicht sicher gespeichert werden."
+                    }
                 }
             }
         }

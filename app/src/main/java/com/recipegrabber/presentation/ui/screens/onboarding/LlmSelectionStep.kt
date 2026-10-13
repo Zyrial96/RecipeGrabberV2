@@ -52,11 +52,13 @@ fun LlmSelectionStep(
     val apiKey by viewModel.apiKey.collectAsState()
     val isValid by viewModel.isValid.collectAsState()
     val showKey by viewModel.showKey.collectAsState()
+    val storageError by viewModel.storageError.collectAsState()
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.verticalScroll(rememberScrollState())
     ) {
+        storageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         StepHeader(
             icon = Icons.Default.Psychology,
             title = "KI-Anbieter wählen",
@@ -168,7 +170,7 @@ fun LlmSelectionStep(
         // Navigation
         Button(
             onClick = onComplete,
-            enabled = isValid,
+            enabled = isValid && storageError == null,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Abschließen")
