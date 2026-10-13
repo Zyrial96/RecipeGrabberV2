@@ -1,6 +1,7 @@
 package com.recipegrabber
 
 import com.recipegrabber.domain.llm.awaitGeminiResponse
+import com.recipegrabber.domain.llm.consumeGeminiResponse
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -71,6 +72,33 @@ class GeminiHttpCallTest {
         val failure = result.await().exceptionOrNull()
         assertTrue(failure is IOException)
         assertEquals(error.message, failure?.message)
+    }
+
+    @Test
+    fun consumingResponseClosesBodyBeforeReturning() = runTest {
+        val result = async(start = CoroutineStart.UNDISPATCHED) { call.consumeGeminiResponse { "parsed" } }
+        callback.captured.onResponse(call, response())
+        assertEquals("parsed", result.await())
+        verify(exactly = 1) { body.close() }
+    }
+
+    @Test
+    fun consumingFailureStillClosesBody() = runTest {
+        val result = async(start = CoroutineStart.UNDISPATCHED) { runCatching { call.consumeGeminiResponse { throw IOException("read failure") } } }
+        callback.captured.onResponse(call, response())
+        assertEquals("read failure", result.await().exceptionOrNull()?.message)
+        verify(exactly = 1) { body.close() }
+    }
+
+    @Test
+    fun cancellationDuringConsumptionCancelsNetworkAndClosesBody() = runTest {
+        lateinit var result: kotlinx.coroutines.Deferred<String>
+        result = async(start = CoroutineStart.UNDISPATCHED) { call.consumeGeminiResponse { result.cancel(); "ignored" } }
+        callback.captured.onResponse(call, response())
+        result.join()
+        assertTrue(result.isCancelled)
+        verify(exactly = 1) { call.cancel() }
+        verify(exactly = 1) { body.close() }
     }
 
     @Test

@@ -22,3 +22,25 @@ internal suspend fun Call.awaitGeminiResponse(): Response = suspendCancellableCo
         }
     })
 }
+
+internal suspend fun <T> Call.consumeGeminiResponse(read: (Response) -> T): T = suspendCancellableCoroutine { continuation ->
+    continuation.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onFailure(call: Call, error: IOException) {
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                if (!continuation.isActive) {
+                    response.close()
+                    return
+                }
+                val result = response.use(read)
+                if (continuation.isActive) continuation.resumeWith(Result.success(result))
+            } catch (error: Exception) {
+                if (continuation.isActive) continuation.resumeWithException(error)
+            }
+        }
+    })
+}

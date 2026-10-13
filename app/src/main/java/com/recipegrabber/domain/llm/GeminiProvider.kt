@@ -1,5 +1,7 @@
 package com.recipegrabber.domain.llm
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.remote.GoogleDriveService
@@ -16,7 +18,8 @@ import javax.inject.Singleton
 class GeminiProvider @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val googleDriveService: GoogleDriveService,
-    private val logger: AppLogger
+    private val logger: AppLogger,
+    @ApplicationContext private val context: Context
 ) : LlmProvider {
 
     private val client = OkHttpClient.Builder()
@@ -66,7 +69,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
   "sourceType": "VIDEO"
 }""".trimMargin()
 
-            val jsonBody = GeminiRequestFactory.buildVideoBody(videoUrl, prompt)
+            GeminiRequestFactory.buildVideoBody(videoUrl, prompt)
 
             val requestAuth = when (preferencesRepository.geminiAuthMode.first()) {
                 GeminiAuthMode.API_KEY -> {
@@ -86,18 +89,19 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
                 }
             }
 
-            val request = GeminiRequestFactory.buildGenerateContentRequest(model, jsonBody, requestAuth)
-
-            client.newCall(request).awaitGeminiResponse().use { response ->
-                if (!response.isSuccessful) {
-                    logger.e("Gemini", "API error ${response.code}")
-                    return@withContext Result.failure(geminiHttpFailure(response.code))
+            GeminiFileUploader.create(client, context.cacheDir).withVideoBody(videoUrl, prompt, requestAuth) { preparedBody ->
+                val request = GeminiRequestFactory.buildGenerateContentRequest(model, preparedBody, requestAuth)
+                client.newCall(request).consumeGeminiResponse { response ->
+                    if (!response.isSuccessful) {
+                        logger.e("Gemini", "API error ${response.code}")
+                        return@consumeGeminiResponse Result.failure(geminiHttpFailure(response.code))
+                    }
+                    val responseBody = response.body?.string()
+                        ?: return@consumeGeminiResponse Result.failure(Exception("No response from Gemini"))
+                    val parsed = GeminiResponseParser.parse(responseBody, videoUrl)
+                    logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
+                    Result.success(parsed)
                 }
-                val responseBody = response.body?.string()
-                    ?: return@withContext Result.failure(Exception("No response from Gemini"))
-                val parsed = GeminiResponseParser.parse(responseBody, videoUrl)
-                logger.i("Gemini", "Successfully extracted recipe: ${parsed.title}")
-                Result.success(parsed)
             }
         } catch (e: CancellationException) {
             throw e
