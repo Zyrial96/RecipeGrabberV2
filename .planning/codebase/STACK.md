@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
+last_mapped_commit: 3dfcf75a166b1af026a710d6e54c8de6b1c9c126
 analysis_date: 2026-10-13
 ---
 
 # Technology Stack
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
+**Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
 ## Languages
 
@@ -52,6 +52,7 @@ analysis_date: 2026-10-13
 - `com.google.dagger:hilt-android:2.51.1` - application services and ViewModels
 - `com.squareup.okhttp3:okhttp:4.12.0` - Gemini transport and cancellation
 - `GeminiFileUploader.kt` uses existing OkHttp `Call.Factory` boundaries for download/upload/poll/delete, bounded cache streaming and public-only media DNS; no new transfer library was added.
+- Small videos up to 8 MiB use Java Base64 inline encoding (compatible with minSdk 31), keeping the encoded request below Google's documented small-request limit without granting Cloud Storage scope. Larger files retain the upload path.
 - `com.squareup.retrofit2:retrofit:2.11.0` - Apify and Kimi clients
 - Google Identity/Play Services Auth - OAuth flows
 - Google API client Android 2.4.1 and Drive API v3 revision 20240521 - Drive app-data operations
@@ -92,4 +93,4 @@ analysis_date: 2026-10-13
 
 ---
 
-*Stack analysis: 2026-10-13; last_mapped_commit: `3069fd99abb8629a520ee646984315e8f32648f4`*
+*Stack analysis: 2026-10-13; last_mapped_commit: `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`*

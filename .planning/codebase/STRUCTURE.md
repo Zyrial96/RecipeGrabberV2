@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
+last_mapped_commit: 3dfcf75a166b1af026a710d6e54c8de6b1c9c126
 analysis_date: 2026-10-13
 ---
 
 # Codebase Structure
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
+**Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
 ## Directory Layout
 
@@ -52,7 +52,7 @@ RecipeGrabberV2/
 
 **`app/src/main/java/com/recipegrabber/domain/llm/`:** Provider abstraction and provider-specific HTTP/request parsing code: `LlmProvider.kt`, `LlmProviderFactory.kt`, `OpenAiProvider.kt`, `GeminiProvider.kt`, `ClaudeProvider.kt`, and `KimiProvider.kt`.
 
-`GeminiFileUploader.kt` owns bounded direct-media download, resumable upload, readiness polling and cleanup. `GeminiHttpCall.kt` has cancellable response consumption that keeps cancellation attached during body reads. Its `Call.Factory` boundaries are tested in `app/src/test/java/com/recipegrabber/GeminiFileUploaderTest.kt` without paid requests.
+`GeminiFileUploader.kt` owns bounded direct-media download, small-video inline encoding, larger-file resumable upload, readiness polling and cleanup. `GeminiHttpCall.kt` keeps cancellation attached during body reads. `GeminiFileUploaderTest.kt` tests its call-factory boundaries, inline/Files routing and cleanup without paid requests.
 
 **`app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`:** Shared URL extraction and validation for `ACTION_SEND` text and clipboard text. It accepts HTTPS links without userinfo, validates supported video hosts/path forms, and returns the first matching URL.
 
@@ -139,4 +139,4 @@ RecipeGrabberV2/
 ---
 
 *Structure analysis: 2026-10-13*
-*Last mapped commit: `3069fd99abb8629a520ee646984315e8f32648f4`*
+*Last mapped commit: `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`*

@@ -29,3 +29,13 @@
 ## Remaining Acceptance
 
 YouTube OAuth/video acceptance remains recorded in the earlier audit. Direct-file positive acceptance still requires an approved Files authorization path and a real extraction/persistence test. Do not mark the full goal complete from these isolated upload tests or from a working source download. An approval/consent dependency is now explicit; do not keep retrying the same scope-denied request.
+
+## Inline Update At 3dfcf75
+
+- Google's [video input guide](https://ai.google.dev/gemini-api/docs/video-understanding) also supports inline bytes for small one-off videos. The new default uses inline data up to 8 MiB, leaving room for base64/prompt overhead below the documented 20MB small-request guidance. The 100 MiB total download cap and larger Files path remain unchanged, not removed to redefine success.
+- Small transfers do not create a Files object or require its Cloud Storage scope. Two new tests verify byte/MIME preservation with no Files calls, and selection of the upload branch above the threshold. 118 JVM tests plus lint/debug/test/release builds pass.
+- Installed main APK SHA-256 `358dbb4b8ceeefa6af2a94f10e3962080ede86c244091157dcc8bdc5dd57aec4` matched the build without clearing data. Default Mi 11 suite: ten passed, three skipped, 8.869 seconds (`/tmp/recipegrabber-inline-device-tests.txt`).
+- Sent the same public 7,482,355-byte WebM through ACTION_SEND. Logs confirm Gemini 3.1 Flash-Lite starting at 13:03:14.990, successful parsing of `Spanische Kartoffel-Tortilla` at 13:03:41.117 and recipe ID 2 saved at 13:03:41.129 (about 26 seconds total).
+- After stopping the app, a read-only Room/WAL snapshot showed ID 2 with the original source URL, four ingredients and seven steps. Restarted the app, verified its list entry and opened its detail view. Temporary database copies/UI dumps were removed; user data and the two saved test recipes were retained. No `recipe-video-*` cache file remained.
+- No extra Google scope, billing setting or IAM role was changed. The pending optional consent question now concerns only larger Files transfers. This small-video acceptance does not prove the 8-100 MiB branch or independently establish every generated quantity's source accuracy.
+- The historical Remaining Acceptance paragraph above is superseded for small direct files. Larger Files upload/readiness/inference/persistence and latest-source hosted CI remain open gates; the full goal is not marked complete at this checkpoint.

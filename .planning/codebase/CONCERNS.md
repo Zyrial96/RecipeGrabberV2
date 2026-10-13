@@ -1,5 +1,5 @@
 ---
-last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
+last_mapped_commit: 3dfcf75a166b1af026a710d6e54c8de6b1c9c126
 analysis_date: 2026-10-13
 ---
 
@@ -7,11 +7,11 @@ analysis_date: 2026-10-13
 
 **Analysis Date:** 2026-10-13
 
-**Source checkpoint:** `/Users/zyrial/Projects/RecipeGrabberV2` at `3069fd99abb8629a520ee646984315e8f32648f4` (`HEAD`).
+**Source checkpoint:** `/Users/zyrial/Projects/RecipeGrabberV2` at `3dfcf75a166b1af026a710d6e54c8de6b1c9c126` (`HEAD`).
 
-**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`.
+**Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`.
 
-**Verification checkpoint:** 116 JVM tests pass. Ten native core tests passed, with three opt-in probes skipped. The 2026-10-13 OAuth/Flash-Lite device audit remains the evidence for the verified YouTube flow. Broad lifecycle/security verification remains deferred; direct-file upload is currently permission-blocked as described below.
+**Verification checkpoint:** 118 JVM tests pass; ten native core tests pass with three probes skipped. Real YouTube and one inline WebM extraction/persistence/restart are verified. Broad lifecycle/security verification remains deferred; larger Files uploads remain permission-blocked.
 
 ## Tech Debt
 
@@ -35,9 +35,10 @@ analysis_date: 2026-10-13
 
 ## Known Bugs
 
-**No independent full remote-file acceptance:**
+**Larger file acceptance remains open:**
 - Symptoms: `VideoLinkParser` accepts safe direct HTTPS MP4/WebM/MOV links and shared text, and native payload coverage passes. A real Commons WebM returned HTTP 400 with `URL_UNREACHABLE-UNREACHABLE_5xx` from Google's fetcher; the same origin responded HTTP 200 from the Mac. Remote-file extraction/persistence acceptance is not established.
 - Update: `GeminiFileUploader` now downloads that media with proper application identification and uses Files API transfer. Its live upload start is rejected with HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`; the current scope remains retriever-only. Additional Cloud Storage permission needs separate user-approved consent, not a global or silent scope expansion.
+- Current update: the same WebM succeeded through the new inline path (up to 8 MiB), saved four ingredients/seven steps and reopened after restart. No extra Google permission was required. The 8-100 MiB Files branch remains unverified/permission-blocked; do not narrow the full acceptance gate to the successful small-file branch.
 - Files: `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`
 - Trigger: Extract a real remote MP4/WebM/MOV URL through each supported provider and device entry point.
 - Workaround: Use the verified public YouTube plus Gemini Flash-Lite flow.
@@ -145,7 +146,7 @@ analysis_date: 2026-10-13
 **Broad lifecycle and security verification is deferred:**
 - What's not tested: Clean-install notification permission flow, Keystore migration, actual DataStore backup policy, log redaction/limits, and process-death recovery across devices.
 - Files: `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`
-- Risk: The 116 passing JVM tests do not establish Android OS, backup, or process-lifecycle behavior.
+- Risk: The 118 passing JVM tests do not establish Android OS, backup, or process-lifecycle behavior.
 - Priority: High
 
 **Drive sync operations are not tested as a product flow:**

@@ -1,19 +1,19 @@
 ---
-last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
+last_mapped_commit: 3dfcf75a166b1af026a710d6e54c8de6b1c9c126
 analysis_date: 2026-10-13
 ---
 
 # External Integrations
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
+**Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
 ## APIs & External Services
 
 **Google Gemini / Generative Language:**
 - `GeminiRequestFactory.kt` calls `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` with OkHttp.
 - API-key mode sends `x-goog-api-key`; OAuth mode sends a bearer token from `GoogleDriveService.kt`.
-- YouTube URLs remain `fileData.fileUri`. Direct HTTPS MP4/WebM/MOV files are downloaded to bounded cache storage and uploaded through `GeminiFileUploader` before inference; only ACTIVE Google file URIs are used. Input credentials, non-HTTPS redirects and private media DNS destinations are rejected.
+- YouTube URLs remain `fileData.fileUri`. Direct HTTPS MP4/WebM/MOV files are downloaded to bounded cache; up to 8 MiB use `inlineData`, larger files use Files API and only ACTIVE file URIs. Input credentials, non-HTTPS redirects and private media DNS destinations are rejected.
 - JSON output is requested with `responseMimeType: application/json` and parsed by `GeminiResponseParser.kt`.
 - Models are declared in `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`; new selections default to Gemini 3.1 Flash-Lite.
 - Live status: `.planning/audits/2026-10-13-google-oauth-registration.md` verifies one public YouTube video succeeded with Flash-Lite, produced four ingredients/five steps, persisted in Room, and survived restart. This does not verify every model, URL, or generated value.
@@ -49,7 +49,7 @@ analysis_date: 2026-10-13
 
 **Google OAuth:**
 - Gemini uses Android Identity AuthorizationClient with only `https://www.googleapis.com/auth/generative-language.retriever`, requested by `GoogleAiAuthorizationRequestFactory.kt`.
-- The live Files upload test returned `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Google's live discovery metadata lists `devstorage.read_only` for file operations. A separate optional consent flow requires user approval and is not implemented/activated at this checkpoint; no scopes or Cloud roles were silently broadened.
+- The live Files upload test returned `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Discovery metadata lists `devstorage.read_only` for file operations. A separate optional consent flow for larger files requires approval and remains unactivated. Small inline videos work with the existing scope; no Cloud roles or account scopes were silently broadened.
 - `consumeGenerativeLanguageAuthorizationResult` requires the exact scope and a nonblank access token.
 - Drive uses Google Sign-In with email and `DriveScopes.DRIVE_APPDATA`, then creates a `GoogleAccountCredential`.
 - These are separate permission flows. Tokens and account identifiers are intentionally omitted from documentation.
@@ -100,7 +100,8 @@ analysis_date: 2026-10-13
 - The prior 3.8 failures remain unresolved service behavior. The audit does not identify quota, billing, transport, or OAuth scope as the cause.
 - A live 7.14MB Commons WebM request through the share-intent path returned HTTP 400. The explicit diagnostic reported `INVALID_ARGUMENT` / `URL_UNREACHABLE-UNREACHABLE_5xx`: Google could not fetch that origin, although the Mac received HTTP 200. Direct-file remote acceptance remains open; this is not an OAuth failure.
 - The new device downloader reaches the same origin with a policy-compliant application User-Agent, but current OAuth cannot start a Files upload (HTTP 403 / scope insufficient). See `.planning/audits/2026-10-13-files-api-verification.md`; do not infer successful upload from the isolated tests.
+- Current positive update: the same 7,482,355-byte WebM now uses inline data, produced recipe ID 2 with four ingredients and seven steps, and survived restart. No Files API object or extra permission was needed. The preceding failure statements are historical for direct-URI/Files transfer, not current small-file acceptance.
 
 ---
 
-*Integration audit: 2026-10-13; last_mapped_commit: `3069fd99abb8629a520ee646984315e8f32648f4`*
+*Integration audit: 2026-10-13; last_mapped_commit: `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`*

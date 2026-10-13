@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 3069fd99abb8629a520ee646984315e8f32648f4
+last_mapped_commit: 3dfcf75a166b1af026a710d6e54c8de6b1c9c126
 analysis_date: 2026-10-13
 ---
 
 # Testing Patterns
 
 **Analysis Date:** 2026-10-13
-**Last mapped commit:** `3069fd99abb8629a520ee646984315e8f32648f4`
+**Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
 ## Test Framework
 
@@ -27,7 +27,8 @@ analysis_date: 2026-10-13
 ## Current Evidence
 
 - `/tmp/recipegrabber-lifecycle-build.txt` records successful `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`, and `assembleRelease` tasks, ending with `BUILD SUCCESSFUL`.
-- Live XML under `app/build/test-results/testDebugUnitTest/` totals 116 JVM tests with zero failures, errors, or skips.
+- Live XML under `app/build/test-results/testDebugUnitTest/` totals 118 JVM tests with zero failures, errors, or skips.
+- Inline routing tests prove small video bytes/MIME are attached without Files calls and threshold-exceeding inputs still use the larger-file upload path. Upload-only fixtures explicitly isolate that branch; the 100 MiB download cap is unchanged.
 - `GeminiFileUploaderTest` verifies bounded streams, auth-header isolation, upload-origin validation, ACTIVE/FAILED/timeout handling, cleanup and private DNS rejection using isolated call factories. `GeminiUploadFailureTest` verifies structured scope diagnostics without raw server-content leakage. `GeminiHttpCallTest` covers cancellation during response consumption as well as header waiting.
 - `VideoLinkParserTest` covers URL parsing and unsafe input handling in `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`.
 - `RecipeExtractionLifecycleTest` covers the extraction lifecycle and records three regressions that failed before fixes and passed after the fixes in `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`.
@@ -36,6 +37,7 @@ analysis_date: 2026-10-13
 - After updating the opt-in probe, the installed test APK's default suite again passed ten tests and skipped three in 8.918 seconds (`/tmp/recipegrabber-current-device-tests.txt`).
 - After the Files uploader changes, the Mi 11 default suite passed ten tests and skipped three in 8.876 seconds (`/tmp/recipegrabber-files-device-tests.txt`). Full local lint/debug/test/release build succeeded. The earlier published checkpoint `bffe751` is also fully green in hosted run 38381879227; the new uploader is not covered by that historical CI result.
 - Hosted run [38385620263](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38385620263) at `9b875e3` is now fully green for build and API 31/35 instrumentation, including the uploader and its tests. Default external probes remain skipped; hosted success does not establish positive remote-file acceptance.
+- With inline checkpoint `3dfcf75`, the Mi 11 default suite passed ten core tests and skipped three in 8.869 seconds (`/tmp/recipegrabber-inline-device-tests.txt`). One real shared WebM separately succeeded, saved four ingredients/seven steps and survived restart, using the unchanged retriever-only OAuth scope. Hosted CI for this newer source still needs verification.
 - A separately selected live WebM diagnostic failed with HTTP 400 / `INVALID_ARGUMENT` and `URL_UNREACHABLE-UNREACHABLE_5xx`. This is external failure evidence, not a default-suite failure or successful media acceptance. The probe can select `probeModel` and `probeVideoUrl` explicitly; flags remain disabled in CI.
 
 ## Test File Organization
