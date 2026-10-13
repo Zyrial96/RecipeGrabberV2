@@ -46,8 +46,6 @@ Optional generation arguments isolate one configuration difference at a time: `-
 
 Xiaomi may restrict USB installation and input separately. Normal APK download/package installation can support development without root or globally disabling Play Protect. Report actual device restrictions rather than substituting a successful host build.
 
-## Issues And Pull Requests
-
 ## Isolated Migration Preflight
 
 Before upgrading a device's real recipe library, use the `audit` variant (`com.recipegrabber.qa`, launcher label `RecipeGrabber QA`). It has separate app data and Keystore storage. It is not registered for live Google OAuth; leave external probe flags disabled.
