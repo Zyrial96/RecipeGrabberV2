@@ -1,5 +1,7 @@
 # Mi 11 Verification And Maintenance
 
+Historical checkpoint from 12 October. For the subsequent Cloud registration and fresh device authorization attempt, see [13 October OAuth audit](2026-10-13-google-oauth-registration.md).
+
 ## Verified State
 
 - Actual checkout: `/Users/zyrial/Projects/RecipeGrabberV2`. Direct Mac execution works with the correct working directory; earlier startup failures at the removed Desktop path did not prove unavailable Mac access.
