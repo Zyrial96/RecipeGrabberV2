@@ -22,7 +22,15 @@ import java.util.concurrent.TimeUnit
 class GeminiNetworkProbeTest {
     @Test
     fun minimalGenerationResponds() = runBlocking {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("generationProbe") == "true")
+        val arguments = InstrumentationRegistry.getArguments()
+        assumeTrue(arguments.getString("generationProbe") == "true")
+        val project = arguments.getString("googleProject")
+        require(project == null || project.matches(Regex("[a-z][a-z0-9-]{4,61}[a-z0-9]")))
+        val http1 = arguments.getString("generationHttp1") == "true"
+        val waitSeconds = arguments.getString("generationWaitSeconds")?.let {
+            requireNotNull(it.toLongOrNull()) { "Invalid generation wait limit" }
+        } ?: 45L
+        require(waitSeconds in 10L..600L)
         val authorization = Identity.getAuthorizationClient(ApplicationProvider.getApplicationContext<Context>())
             .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest()).await()
         assertTrue("Existing consent required; this probe does not launch consent", !authorization.hasResolution())
@@ -32,11 +40,14 @@ class GeminiNetworkProbeTest {
             "gemini-3.8-flash",
             """{"contents":[{"parts":[{"text":"Return only this JSON object: {\"ok\":true}"}]}],"generationConfig":{"responseMimeType":"application/json","maxOutputTokens":1024}}""",
             GeminiRequestAuth.OAuth(requireNotNull(token))
-        )
+        ).newBuilder().apply {
+            if (project != null) header("x-goog-user-project", project)
+        }.build()
         val client = OkHttpClient.Builder()
+            .apply { if (http1) protocols(listOf(Protocol.HTTP_1_1)) }
             .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(45, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(waitSeconds, TimeUnit.SECONDS)
+            .callTimeout(minOf(waitSeconds + 15L, 600L), TimeUnit.SECONDS)
             .build()
         val started = System.nanoTime()
         try {
@@ -48,7 +59,7 @@ class GeminiNetworkProbeTest {
                 val reasons = error?.getAsJsonArray("details")?.mapNotNull {
                     it.asJsonObject.get("reason")?.asString
                 }.orEmpty().joinToString(",")
-                Log.i("RG-NetworkProbe", "minimal generation: HTTP ${response.code}, status=$status, reasons=$reasons, ${elapsed}ms")
+                Log.i("RG-NetworkProbe", "minimal generation: HTTP ${response.code}, status=$status, reasons=$reasons, quotaHeader=${project != null}, protocol=${response.protocol}, ${elapsed}ms")
                 assertTrue("HTTP ${response.code}, $status, $reasons", response.isSuccessful)
                 val candidate = body.getAsJsonArray("candidates").first().asJsonObject
                 val output = candidate.getAsJsonObject("content").getAsJsonArray("parts")
@@ -59,7 +70,7 @@ class GeminiNetworkProbeTest {
             }
         } catch (error: Exception) {
             val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
-            Log.i("RG-NetworkProbe", "minimal generation: ${error.javaClass.simpleName}, ${elapsed}ms")
+            Log.i("RG-NetworkProbe", "minimal generation: ${error.javaClass.simpleName}, quotaHeader=${project != null}, http1=$http1, ${elapsed}ms")
             throw error
         } finally {
             client.connectionPool.evictAll()

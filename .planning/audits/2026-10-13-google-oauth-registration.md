@@ -41,9 +41,18 @@
 - The provider now maps server failures, rate limits, authentication and permission errors to distinct actionable messages, retaining the HTTP code and excluding raw server content. Four regressions failed against the old generic messages and then passed.
 - Code commit `a28c2d6`: 62 unit tests, lint, debug/release builds passed; installed APK SHA-256 `f4f6d1cb937d45527540b1d19166f2e5002e7d4b025bd2268f86a78c8bd62ea7`. The Mi 11's default suite passed eight core tests with all three opt-in probes skipped (eleven discovered tests, 9.112 seconds).
 
+## Follow-Up Isolation And CI
+
+- [CI run 38371017392](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38371017392) at `772c557` completed successfully for build and both API 31/35 emulator jobs. Later diagnostic-only changes are not covered by that hosted result.
+- The short text probe repeated without a quota header timed out at about 45 seconds. The explicit-project variant also timed out at 45 seconds; forcing HTTP/1.1 with that header did not fix the short test either.
+- Google's public [status page](https://aistudio.google.com/status) showed all systems operational, while noting that availability varies by customer tier, model and features. This is not proof that this project's generation requests succeed.
+- Read-only Cloud Console inspection showed no billing account linked to the Recipe Grabber project. The CLI billing-status query was unavailable because the Cloud Billing API was disabled; it was not enabled. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing) includes a free tier for Gemini 3.8 Flash, so missing billing alone does not establish the cause. Billing and permissions were unchanged.
+- Extended the opt-in diagnostic's configurable wait, bounded to 600 seconds, following the default generation timeout in Google's published client transport. With explicit quota project and HTTP/1.1, it returned HTTP 200 after 54,010ms and passed the expected synthetic JSON assertion. This proves an actual Android OAuth generation, not merely model metadata. It does not establish that the quota header or HTTP/1.1 is necessary: the earlier comparable request had a shorter time limit, and service availability can vary.
+- Retried the actual cooking-video URL through the unchanged production flow afterward. It returned HTTP 503 after roughly nine seconds with the new actionable service-unavailability message; no recipe was saved. The successful synthetic generation is not substituted for video acceptance.
+
 ## Remaining Acceptance
 
 - Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
-- Google login, token acceptance and authenticated model-metadata access are demonstrated. Successful generation and recipe persistence for a real video remain unproven. Recheck the explicitly observed service failure with a bounded request after waiting; do not repeatedly submit long video requests or treat metadata success as inference success.
+- Google login, token acceptance, model metadata and one synthetic generation are demonstrated. Recipe extraction/persistence for a real video remains unproven. Isolate production request configuration and video processing from transient generation failures; do not treat the synthetic success as full acceptance.
 
 The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved; the remaining failure is the live video API response path described above.

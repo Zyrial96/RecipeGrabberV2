@@ -40,6 +40,8 @@ Replace the device and project placeholders. The unauthenticated GET expects HTT
 
 For a separately authorized generation check, select only `GeminiNetworkProbeTest#minimalGenerationResponds` and pass `-e generationProbe true`. This sends one synthetic JSON prompt to Gemini 3.8 Flash, with a 1,024-token output cap and 60-second total timeout. It can incur API usage charges, has no automatic retries and does not save a recipe. A passing text probe still does not prove video extraction. Never enable this flag in automated CI.
 
+Optional generation arguments isolate one configuration difference at a time: `-e googleProject YOUR_PROJECT_ID` adds a quota-project header, `-e generationHttp1 true` forces HTTP/1.1, and `-e generationWaitSeconds N` changes the read wait (10-600 seconds). The total deadline is the read wait plus 15 seconds, capped at 600 seconds. These options affect only the explicitly selected diagnostic, not production settings. Keep token/account details out of reports and do not infer a cause merely because different requests have different outcomes.
+
 Xiaomi may restrict USB installation and input separately. Normal APK download/package installation can support development without root or globally disabling Play Protect. Report actual device restrictions rather than substituting a successful host build.
 
 ## Issues And Pull Requests
