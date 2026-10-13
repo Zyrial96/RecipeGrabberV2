@@ -89,7 +89,9 @@ internal class GeminiFileUploader(
         var url = initial
         repeat(6) {
             require(url.isHttps && url.username.isEmpty() && url.password.isEmpty()) { "Unsichere Video-Weiterleitung." }
-            val redirect = downloads.newCall(Request.Builder().url(url).build()).consumeGeminiResponse { response ->
+            val redirect = downloads.newCall(Request.Builder().url(url)
+                .header("User-Agent", "RecipeGrabberV2 (https://github.com/Zyrial96/RecipeGrabberV2)")
+                .build()).consumeGeminiResponse { response ->
                 if (response.code in listOf(301, 302, 303, 307, 308)) {
                     requireNotNull(response.header("Location")?.let(url::resolve)) { "Ungueltige Video-Weiterleitung." }
                 } else {

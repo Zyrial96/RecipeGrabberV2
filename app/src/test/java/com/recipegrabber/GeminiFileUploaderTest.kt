@@ -73,6 +73,7 @@ class GeminiFileUploaderTest {
         }
         assertNull(downloads.requests.single().header("Authorization"))
         assertNull(downloads.requests.single().header("x-goog-api-key"))
+        assertEquals("RecipeGrabberV2 (https://github.com/Zyrial96/RecipeGrabberV2)", downloads.requests.single().header("User-Agent"))
         assertTrue(api.requests.all { it.header("Authorization") == "Bearer synthetic-token" })
         assertEquals("video", api.payloads[1])
         assertEquals("upload, finalize", api.requests[1].header("X-Goog-Upload-Command"))
