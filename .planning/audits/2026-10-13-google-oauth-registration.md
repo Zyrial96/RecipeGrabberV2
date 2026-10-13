@@ -10,16 +10,25 @@
 
 ## Device Evidence
 
-- Xiaomi Mi 11 was the only connected ADB target used. The installed APK remained SHA-256 `d31ab413c353f2be72f5772f3ea123767a606e0036bdc9fcbd3c2a8448a9a5a4`.
+- Xiaomi Mi 11 was the only connected ADB target used. The registration test used APK SHA-256 `d31ab413c353f2be72f5772f3ea123767a606e0036bdc9fcbd3c2a8448a9a5a4`.
 - Fresh signingReport matched the new registration. No app rebuild or credential insertion was needed for this Cloud-side correction.
 - Started `Connect Google OAuth` and selected the existing account matching the active Cloud CLI identity without publishing account details.
 - The device now reaches Google's `Diese App wurde nicht ueberprueft` test-app security notice, instead of the previously observed registration error. The console confirms the project is still restricted to test users.
-- The security notice was not bypassed automatically. User handoff is required before continuing through that notice.
+- The security notice was not bypassed automatically. The user subsequently confirmed completion of the security step.
+- The actual authorization callback returned `RESULT_OK` with data and included `https://www.googleapis.com/auth/generative-language.retriever` in the granted scopes. The app showed `Google OAuth is connected for Gemini.` Its result handler requires the granted scope and a nonblank access token before marking authorization successful. Tokens and account details were not exported or published.
+
+## Live Extraction Checks
+
+- Tested the public Jamie Oliver cooking video `https://www.youtube.com/watch?v=yKUui_b7JO0` through the app's URL dialog with Gemini 3.8 Flash and Google OAuth.
+- First call timed out after approximately 60 seconds. The sanitized stack identified `SocketTimeoutException` while OkHttp HTTP/2 was reading response headers, not a registration error or JSON parse failure.
+- Commit `5d1dbfb` increases Gemini's read timeout to 180 seconds and adds a 240-second total call limit, retaining the existing connect/write limits. It does not claim to repair the remote response problem.
+- Installed that build without clearing app data; verified APK SHA-256 `061f8965dc5174e9d2cac8484bb4bc116493d734759a68a878ac73a5918874ff`. All 58 unit tests, lint, debug/release builds and eight Mi 11 instrumentation tests passed locally (device suite: 9.067 seconds).
+- A single repeat of the same video request timed out after approximately 180 seconds. No recipe was saved. The cached Android authorization reached the HTTP request without another consent prompt or token-acquisition error; successful inference remains unproven.
+- A separate non-generating models-endpoint check from the Mac, using the existing CLI identity and explicit project header, promptly returned HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. That CLI credential is not the Android AuthorizationClient token. This proves a Mac response path, not a successful Android API call or an Android scope diagnosis.
 
 ## Remaining Acceptance
 
-- Complete the user-approved security/consent flow on the Mi 11 and observe the actual authorization result.
-- Verify token acquisition without exporting or logging the token; then verify an actual supported video extraction separately.
-- Reaching a security or consent screen does not prove successful login, granted permissions, API access or recipe extraction.
+- Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
+- Google login and token acceptance are now demonstrated. Model access, inference and recipe persistence for a real video are separate gates and have not passed.
 
-The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker has progressed to the security/consent checkpoint described here.
+The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved; the remaining failure is the live video API response path described above.
