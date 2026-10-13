@@ -39,6 +39,15 @@ object LlmModels {
         contextWindow = 1048576
     )
     
+    val GEMINI_31_FLASH_LITE = LlmModel(
+        id = "gemini-3.1-flash-lite",
+        name = "Gemini 3.1 Flash-Lite",
+        description = "Leichtgewichtige Text- und Videoanalyse",
+        provider = ProviderType.GEMINI,
+        isVisionCapable = true,
+        contextWindow = 1048576
+    )
+
     val GEMINI_25_FLASH = LlmModel(
         id = "gemini-2.5-flash",
         name = "Gemini 2.5 Flash",
@@ -79,7 +88,7 @@ object LlmModels {
     
     val ALL_MODELS = listOf(
         GPT_4O, GPT_4O_MINI,
-        GEMINI_38_FLASH, GEMINI_25_FLASH,
+        GEMINI_38_FLASH, GEMINI_31_FLASH_LITE, GEMINI_25_FLASH,
         CLAUDE_35_SONNET, CLAUDE_3_HAIKU,
         KIMI_K2_5
     )

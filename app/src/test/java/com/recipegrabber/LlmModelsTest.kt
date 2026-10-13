@@ -23,6 +23,16 @@ class LlmModelsTest {
     }
 
     @Test
+    fun `lightweight Gemini video model is explicitly selectable`() {
+        val model = LlmModels.getModelById("gemini-3.1-flash-lite")
+        assertNotNull(model)
+        assertEquals(ProviderType.GEMINI, model?.provider)
+        assertTrue(model?.isVisionCapable == true)
+        assertTrue(LlmModels.getModelsForProvider(ProviderType.GEMINI).contains(model))
+        assertEquals("gemini-3.8-flash", LlmModels.getDefaultModelForProvider(ProviderType.GEMINI).id)
+    }
+
+    @Test
     fun `existing Gemini selection remains resolvable`() {
         val model = LlmModels.getModelById("gemini-2.5-flash")
         assertNotNull(model)
