@@ -9,6 +9,7 @@ plugins {
 android {
     namespace = "com.recipegrabber"
     compileSdk = 35
+    testBuildType = if (providers.gradleProperty("qaTests").orNull == "true") "audit" else "debug"
 
     defaultConfig {
         applicationId = "com.recipegrabber"
@@ -28,6 +29,12 @@ android {
     }
 
     buildTypes {
+        create("audit") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa"
+            versionNameSuffix = "-qa"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
@@ -64,6 +71,12 @@ android {
             it.useJUnitPlatform()
         }
     }
+
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
+}
+
+configurations.named("auditImplementation") {
+    extendsFrom(configurations.getByName("debugImplementation"))
 }
 
 dependencies {

@@ -30,6 +30,26 @@ interface RecipeDao {
     @Query("SELECT * FROM recipes ORDER BY createdAt DESC")
     fun getAllRecipesWithDetails(): Flow<List<RecipeWithDetails>>
 
+    @Transaction
+    @Query("SELECT * FROM recipes ORDER BY createdAt DESC")
+    suspend fun snapshotRecipes(): List<RecipeWithDetails>
+
+    @Query("SELECT backupId FROM recipes")
+    suspend fun backupIds(): List<String>
+
+    @Transaction
+    suspend fun mergeBackup(recipes: List<RecipeWithDetails>): Int {
+        val known = backupIds().toMutableSet()
+        var inserted = 0
+        for (entry in recipes) {
+            if (known.add(entry.recipe.backupId)) {
+                insertRecipeWithDetails(entry.recipe.copy(id = 0, isSynced = false), entry.ingredients, entry.steps)
+                inserted++
+            }
+        }
+        return inserted
+    }
+
     @Query("SELECT * FROM recipes WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%' ORDER BY createdAt DESC")
     fun searchRecipes(query: String): Flow<List<Recipe>>
 
@@ -39,7 +59,7 @@ interface RecipeDao {
     @Query("SELECT * FROM recipes WHERE isSynced = 0")
     suspend fun getUnsyncedRecipes(): List<Recipe>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertRecipe(recipe: Recipe): Long
 
     @Update

@@ -34,9 +34,11 @@
 
 ## D-01: Backup Format And Transactional Merge
 
-- [ ] Add `domain/backup/RecipeBackupCodec.kt`: versioned JSON, strict size/count/text/numeric limits, explicit DTO allowlist, no settings or secrets. Reject unsupported versions and incomplete/malformed archives before database writes.
-- [ ] Add transactional DAO snapshot/merge. Reset archive IDs for newly inserted aggregates, preserve source/content/favorites/timestamps, skip equivalent records and keep existing records on conflicts. No schema migration unless genuinely necessary.
-- [ ] JVM/native tests: round-trip, unknown version, nonfinite/negative/oversized/malformed data, idempotent restore, conflict preservation, rollback of a multi-recipe failure, coherent snapshots. Commit/push.
+**Decision:** A stable per-recipe UUID and unique index require Room version 4. Migration 3-to-4 must preserve all version-3 data/IDs/relations and assign UUIDs; no destructive fallback. An isolated `audit` variant (`com.recipegrabber.qa`) permits native preflight on the Mi 11 before upgrading its real library. Restore matches UUIDs, not titles/URLs, so distinct duplicate recipes survive. Existing UUIDs always win; identity collisions during direct insertion abort rather than replace.
+
+- [x] Add `domain/backup/RecipeBackupCodec.kt`: versioned JSON, 2 MiB/500-recipe limits plus structural/text/numeric bounds, explicit field allowlist, no settings/credential fields. Reject unsupported versions, duplicate IDs/fields and incomplete/malformed archives before database writes.
+- [x] Add transactional DAO snapshot/merge. Reset database IDs for newly inserted aggregates, preserve source/content/favorites/timestamps, skip existing stable UUIDs and retain local edits. Room 3-to-4 assigns UUIDs without rewriting recipe data; direct identity collisions abort instead of replacing.
+- [x] JVM/native tests: round-trip, unknown version, negative/oversized/malformed data, UTF8/depth/duplicate-key rejection, idempotent restore, distinct duplicates, conflict preservation, full rollback and real schema-3 fixture migration. 140 JVM passes and twenty-two QA native passes with three probes skipped; publication in D-01 commit. Main app upgrade waits for integration/acceptance phase.
 
 ## D-02: Drive Transport And Settings
 

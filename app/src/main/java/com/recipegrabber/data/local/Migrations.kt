@@ -2,6 +2,7 @@ package com.recipegrabber.data.local
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.util.UUID
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -82,5 +83,17 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("ALTER TABLE recipes ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
         database.execSQL("ALTER TABLE recipes ADD COLUMN isSynced INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE recipes ADD COLUMN backupId TEXT NOT NULL DEFAULT ''")
+        database.query("SELECT id FROM recipes").use { cursor ->
+            while (cursor.moveToNext()) {
+                database.execSQL("UPDATE recipes SET backupId = ? WHERE id = ?", arrayOf(UUID.randomUUID().toString(), cursor.getLong(0)))
+            }
+        }
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_recipes_backupId ON recipes(backupId)")
     }
 }

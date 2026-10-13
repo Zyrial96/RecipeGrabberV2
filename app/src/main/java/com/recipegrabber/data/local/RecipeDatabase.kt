@@ -11,7 +11,7 @@ import com.recipegrabber.data.local.entity.Step
 
 @Database(
     entities = [Recipe::class, Ingredient::class, Step::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class RecipeDatabase : RoomDatabase() {

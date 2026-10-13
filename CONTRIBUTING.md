@@ -48,6 +48,23 @@ Xiaomi may restrict USB installation and input separately. Normal APK download/p
 
 ## Issues And Pull Requests
 
+## Isolated Migration Preflight
+
+Before upgrading a device's real recipe library, use the `audit` variant (`com.recipegrabber.qa`, launcher label `RecipeGrabber QA`). It has separate app data and Keystore storage. It is not registered for live Google OAuth; leave external probe flags disabled.
+
+```bash
+./gradlew assembleAudit
+./gradlew -PqaTests=true assembleAuditAndroidTest
+adb -s DEVICE_SERIAL install -r app/build/outputs/apk/audit/app-audit.apk
+adb -s DEVICE_SERIAL install -r app/build/outputs/apk/androidTest/audit/app-audit-androidTest.apk
+adb -s DEVICE_SERIAL shell am instrument -w -r \
+  com.recipegrabber.qa.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+`-PqaTests=true` selects audit instrumentation explicitly; normal debug tests and CI keep their existing commands. If the device refuses adb installation, use the normal package installer instead of weakening OS security. The backup migration fixture uses exported Room version-3 schema assets and isolated QA databases, not the user's library. Exported schemas are part of the review for Room version changes.
+
+## Issues And Pull Requests
+
 Include expected/actual behavior, reproduction steps, Android version, app commit and a redacted error. Never attach keys, private video URLs, account emails or unreviewed full logcat dumps. For OAuth errors, check package/signing registration rather than posting secrets.
 
 Keep changes focused and describe verification and untested dependencies. Documentation must describe shipped behavior, not planned features. Contributions are covered by the repository's MIT license.
