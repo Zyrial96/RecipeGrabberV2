@@ -28,14 +28,22 @@
 
 ## Device Response-Path Diagnosis
 
-- Added opt-in `GeminiNetworkProbeTest`, with all external requests disabled unless explicitly selected through instrumentation arguments. It does not generate content or change account permissions.
+- Added opt-in `GeminiNetworkProbeTest`, with all external requests disabled unless explicitly selected through instrumentation arguments. Its original connectivity/metadata checks do not generate content or change account permissions. The separate generation probe described below also requires an explicit opt-in.
 - On the Mi 11, unauthenticated metadata requests returned expected HTTP 403 over negotiated HTTP/1.1 in 134ms and negotiated HTTP/2 in 138ms. This contradicts a general endpoint-connectivity or HTTP/2 transport diagnosis for the observed video timeout.
 - With the actual Android AuthorizationClient token and existing consent, the Gemini 3.8 Flash metadata endpoint returned HTTP 200 both without a quota header and with the explicitly selected Cloud project. The earlier CLI-token scope failure does not apply to this Android token.
 - Both opt-in diagnostic paths passed when explicitly activated. The ordinary device suite then passed all eight core tests, with the two diagnostics skipped (runner reports ten discovered tests). Unit/lint/debug/release checks also succeeded. No further potentially billed video inference was attempted in this diagnostic step.
 
+## Minimal Generation Isolation
+
+- One explicitly selected `minimalGenerationResponds` probe used the actual Android OAuth token and the production request factory to send a tiny synthetic JSON prompt, without video/fileData. No extra permissions, account details or recipe data were requested.
+- The API responded after 1,036ms with HTTP 503 and structured status `UNAVAILABLE`. The manually enabled diagnostic test correctly failed; this is not a passing inference result.
+- This proves a generation failure occurs without YouTube input. It does not prove that the earlier video timeouts have the same cause, nor establish a global Google outage. No automatic retry or provider/model substitution was added.
+- The provider now maps server failures, rate limits, authentication and permission errors to distinct actionable messages, retaining the HTTP code and excluding raw server content. Four regressions failed against the old generic messages and then passed.
+- Code commit `a28c2d6`: 62 unit tests, lint, debug/release builds passed; installed APK SHA-256 `f4f6d1cb937d45527540b1d19166f2e5002e7d4b025bd2268f86a78c8bd62ea7`. The Mi 11's default suite passed eight core tests with all three opt-in probes skipped (eleven discovered tests, 9.112 seconds).
+
 ## Remaining Acceptance
 
 - Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
-- Google login, token acceptance and authenticated model-metadata access are now demonstrated. Inference and recipe persistence for a real video are separate gates and have not passed. Next isolate a minimal generation request from the YouTube file-input path; do not treat a metadata GET as successful generation.
+- Google login, token acceptance and authenticated model-metadata access are demonstrated. Successful generation and recipe persistence for a real video remain unproven. Recheck the explicitly observed service failure with a bounded request after waiting; do not repeatedly submit long video requests or treat metadata success as inference success.
 
 The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved; the remaining failure is the live video API response path described above.

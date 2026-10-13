@@ -7,6 +7,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.gson.JsonParser
 import com.recipegrabber.data.remote.GoogleAiAuthorizationRequestFactory
+import com.recipegrabber.domain.llm.GeminiRequestAuth
+import com.recipegrabber.domain.llm.GeminiRequestFactory
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import okhttp3.OkHttpClient
@@ -18,6 +20,53 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 class GeminiNetworkProbeTest {
+    @Test
+    fun minimalGenerationResponds() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("generationProbe") == "true")
+        val authorization = Identity.getAuthorizationClient(ApplicationProvider.getApplicationContext<Context>())
+            .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest()).await()
+        assertTrue("Existing consent required; this probe does not launch consent", !authorization.hasResolution())
+        val token = authorization.accessToken
+        assertTrue("No access token returned", !token.isNullOrBlank())
+        val request = GeminiRequestFactory.buildGenerateContentRequest(
+            "gemini-3.8-flash",
+            """{"contents":[{"parts":[{"text":"Return only this JSON object: {\"ok\":true}"}]}],"generationConfig":{"responseMimeType":"application/json","maxOutputTokens":1024}}""",
+            GeminiRequestAuth.OAuth(requireNotNull(token))
+        )
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .build()
+        val started = System.nanoTime()
+        try {
+            client.newCall(request).execute().use { response ->
+                val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+                val body = JsonParser.parseString(response.body!!.string()).asJsonObject
+                val error = body.getAsJsonObject("error")
+                val status = error?.get("status")?.asString.orEmpty()
+                val reasons = error?.getAsJsonArray("details")?.mapNotNull {
+                    it.asJsonObject.get("reason")?.asString
+                }.orEmpty().joinToString(",")
+                Log.i("RG-NetworkProbe", "minimal generation: HTTP ${response.code}, status=$status, reasons=$reasons, ${elapsed}ms")
+                assertTrue("HTTP ${response.code}, $status, $reasons", response.isSuccessful)
+                val candidate = body.getAsJsonArray("candidates").first().asJsonObject
+                val output = candidate.getAsJsonObject("content").getAsJsonArray("parts")
+                    .map { it.asJsonObject }
+                    .filter { it.get("thought")?.asBoolean != true }
+                    .mapNotNull { it.get("text")?.asString }.joinToString("")
+                assertTrue("Expected synthetic JSON response", JsonParser.parseString(output).asJsonObject.get("ok").asBoolean)
+            }
+        } catch (error: Exception) {
+            val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+            Log.i("RG-NetworkProbe", "minimal generation: ${error.javaClass.simpleName}, ${elapsed}ms")
+            throw error
+        } finally {
+            client.connectionPool.evictAll()
+            client.dispatcher.executorService.shutdown()
+        }
+    }
+
     @Test
     fun authorizedModelMetadataResponds() = runBlocking {
         val arguments = InstrumentationRegistry.getArguments()

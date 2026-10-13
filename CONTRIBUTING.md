@@ -27,7 +27,7 @@ Add regressions for changed behavior, including malformed responses, missing cre
 
 For device tests, record model, Android API level, build/commit and observed flow. Distinguish an opened OAuth dialog, granted permissions, a usable token and successful extraction. Do not claim the latter from the former.
 
-`GeminiNetworkProbeTest` contains opt-in connectivity diagnostics. Without explicit instrumentation arguments both diagnostics are skipped, including in CI. They do not generate content or log tokens, accounts or response bodies. The OAuth check requires existing Gemini consent and never opens a consent dialog. After installing the debug app and test APK, run:
+`GeminiNetworkProbeTest` contains opt-in connectivity and generation diagnostics. Without explicit instrumentation arguments all three probes are skipped, including in CI. The connectivity/metadata checks do not generate content. No probe logs tokens, accounts or response bodies. OAuth probes require existing Gemini consent and never open a consent dialog. After installing the debug app and test APK, run the non-generating checks:
 
 ```bash
 adb -s DEVICE_SERIAL shell am instrument -w -r \
@@ -37,6 +37,8 @@ adb -s DEVICE_SERIAL shell am instrument -w -r \
 ```
 
 Replace the device and project placeholders. The unauthenticated GET expects HTTP 401/403 over HTTP/1.1 and HTTP/2. The OAuth metadata GET compares requests with and without a quota-project header. Passing these checks proves endpoint/model-metadata access, not video inference.
+
+For a separately authorized generation check, select only `GeminiNetworkProbeTest#minimalGenerationResponds` and pass `-e generationProbe true`. This sends one synthetic JSON prompt to Gemini 3.8 Flash, with a 1,024-token output cap and 60-second total timeout. It can incur API usage charges, has no automatic retries and does not save a recipe. A passing text probe still does not prove video extraction. Never enable this flag in automated CI.
 
 Xiaomi may restrict USB installation and input separately. Normal APK download/package installation can support development without root or globally disabling Play Protect. Report actual device restrictions rather than substituting a successful host build.
 
