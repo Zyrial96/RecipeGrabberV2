@@ -1,220 +1,165 @@
+---
+last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+analysis_date: 2026-10-13
+---
+
+<!-- refreshed: 2026-10-13 -->
 # Architecture
 
-**Analysis Date:** 2026-04-30
+**Analysis Date:** 2026-10-13
+**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
+
+## System Overview
+
+```text
+Android launcher/share intent
+        |
+        v
+`app/src/main/.../presentation/MainActivity.kt`
+        | onboarding gate, Compose navigation, clipboard receiver
+        v
+Compose screens + Hilt ViewModels
+        |                         \
+        v                          v
+Use cases (`domain/usecase`)       Settings (`PreferencesRepository`)
+        |                          | DataStore preferences
+        v                          |
+Apify + LLM providers              |
+        |                          |
+        +-----------> `SaveRecipeUseCase` <---+
+                                |
+                                v
+              `RecipeRepository` -> Room DAO transaction
+                                |
+                                v
+                 recipes + ingredients + steps
+```
+
+The project is a single Android application module (`app/`) using Compose UI, Hilt injection, Room persistence, Preferences DataStore, Retrofit/OkHttp integrations, and coroutine-based ViewModels/services. Package boundaries provide layers, but the application is not split into Gradle modules.
+
+## Component Responsibilities
+
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| Application bootstrap | Registers the Hilt application entry | `app/src/main/java/com/recipegrabber/RecipeGrabberApplication.kt` |
+| Activity shell | Handles launcher/share intents through the shared parser, onboarding gate, navigation, extraction sheet, and clipboard broadcasts | `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt` |
+| Video link parser | Extracts and validates HTTPS video links from shared text and clipboard content | `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt` |
+| Compose UI | Renders recipes, settings, logs, extraction, and onboarding workflows | `app/src/main/java/com/recipegrabber/presentation/ui/screens/` |
+| ViewModels | Own screen state and launch suspend workflows | `app/src/main/java/com/recipegrabber/presentation/viewmodel/` |
+| Extraction orchestration | Validates URLs, scrapes optional video metadata, selects provider, validates output, and saves | `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt` |
+| Persistence facade | Exposes recipe reads/writes without exposing DAO details to UI | `app/src/main/java/com/recipegrabber/data/repository/RecipeRepository.kt` |
+| Settings facade | Exposes typed DataStore flows and setters | `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt` |
+| Local database | Defines Room database, entities, relations, migrations, and DAOs | `app/src/main/java/com/recipegrabber/data/local/` |
+| Clipboard service | Runs a foreground clipboard listener and broadcasts supported URLs | `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` |
 
 ## Pattern Overview
 
-**Overall:** Single-module Android MVVM with layered packages, Hilt dependency injection, Room persistence, DataStore preferences, Compose UI, and service/use-case orchestration.
+**Overall:** Single-module Android MVVM with layered data/domain/presentation packages and dependency injection.
 
 **Key Characteristics:**
-- UI state is owned by `@HiltViewModel` classes under `app/src/main/java/com/recipegrabber/presentation/viewmodel/` and `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/`.
-- Persistence is split between Room entities/DAOs in `app/src/main/java/com/recipegrabber/data/local/` and DataStore preferences in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Recipe extraction flows through use cases in `app/src/main/java/com/recipegrabber/domain/usecase/`, provider abstractions in `app/src/main/java/com/recipegrabber/domain/llm/`, and external service wrappers in `app/src/main/java/com/recipegrabber/data/remote/`.
-- Navigation is centralized in `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt` using Compose Navigation routes.
-- Long-running clipboard monitoring is isolated in `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` and communicates URL detections back to `MainActivity` by app-scoped broadcast.
+- Compose screens obtain Hilt ViewModels and render `StateFlow`/DataStore/Room flows.
+- `MainActivity` is the composition root for navigation and app-level intent/clipboard events.
+- Repository and use-case classes are `@Singleton` constructor-injected services.
+- Recipe parent/child persistence is grouped behind `RecipeDao` `@Transaction` methods.
+- Provider selection uses `LlmProviderFactory` and the `LlmProvider` abstraction.
 
 ## Layers
 
-**Application Bootstrap:**
-- Purpose: Initialize Android application and Hilt graph.
-- Location: `app/src/main/java/com/recipegrabber/RecipeGrabberApplication.kt`
-- Contains: `@HiltAndroidApp` application class.
-- Depends on: Android `Application`, Hilt.
-- Used by: `app/src/main/AndroidManifest.xml` through `android:name=".RecipeGrabberApplication"`.
+**Presentation:**
+- Purpose: Render UI and translate user/system events into ViewModel actions.
+- Location: `app/src/main/java/com/recipegrabber/presentation/`
+- Contains: `MainActivity.kt`, screens, onboarding, theme, utilities, and ViewModels.
+- Depends on: Domain use cases, repositories, Android/Compose APIs.
+- Used by: Android manifest entry points and Compose runtime.
 
-**Presentation Activity and Navigation:**
-- Purpose: Host Compose content, decide onboarding vs. app routes, receive share intents, start clipboard monitoring.
-- Location: `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`
-- Contains: `ComponentActivity`, `NavHost`, route definitions, share intent handling, clipboard broadcast receiver.
-- Depends on: `PreferencesRepository`, Compose, Compose Navigation, `ClipboardMonitorService`, screen composables.
-- Used by: Android launcher and share intents declared in `app/src/main/AndroidManifest.xml`.
-
-**Compose Screens:**
-- Purpose: Render user workflows and call viewmodel actions.
-- Location: `app/src/main/java/com/recipegrabber/presentation/ui/screens/`
-- Contains: `RecipeListScreen.kt`, `RecipeDetailScreen.kt`, `SettingsScreen.kt`, `LogViewerScreen.kt`, `RecipeExtractionBottomSheet.kt`, and onboarding composables in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/`.
-- Depends on: Viewmodels via `hiltViewModel()`, Material 3 Compose, local entities for display models.
-- Used by: `MainActivity.kt` navigation graph and onboarding gate.
-
-**Viewmodels:**
-- Purpose: Convert repositories/use cases into observable UI state and expose user actions.
-- Location: `app/src/main/java/com/recipegrabber/presentation/viewmodel/` and onboarding viewmodels in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/`.
-- Contains: `RecipeListViewModel.kt`, `RecipeDetailViewModel.kt`, `RecipeExtractionViewModel.kt`, `SettingsViewModel.kt`, `LogViewerViewModel.kt`, `OnboardingViewModel.kt`, `OnboardingDriveViewModel.kt`, `OnboardingApifyViewModel.kt`, `OnboardingLlmViewModel.kt`.
-- Depends on: `RecipeRepository`, `PreferencesRepository`, `GoogleDriveService`, `ExtractRecipeUseCase`, `AppLogger`, `LlmProviderFactory`.
-- Used by: Compose screens through Hilt navigation compose.
-
-**Domain Use Cases:**
-- Purpose: Coordinate business workflows that span repositories, providers, settings, and logging.
+**Domain orchestration:**
+- Purpose: Coordinate extraction and save workflows independently of screen composition.
 - Location: `app/src/main/java/com/recipegrabber/domain/usecase/`
-- Contains: `ExtractRecipeUseCase.kt`, `SaveRecipeUseCase.kt`.
-- Depends on: `ApifyService`, `LlmProviderFactory`, `PreferencesRepository`, `RecipeRepository`, `AppLogger`.
-- Used by: `RecipeExtractionViewModel.kt`; `RecipeListViewModel.kt` also performs a direct extraction path through `LlmProviderFactory`.
+- Contains: `ExtractRecipeUseCase.kt` and `SaveRecipeUseCase.kt`.
+- Depends on: `ApifyService`, `LlmProviderFactory`, `PreferencesRepository`, `RecipeRepository`, and `AppLogger`.
+- Used by: `RecipeExtractionViewModel.kt` and extraction UI flows.
 
-**LLM Provider Abstraction:**
-- Purpose: Hide provider-specific recipe extraction APIs behind a common interface.
+**Provider domain:**
+- Purpose: Normalize multiple LLM APIs behind one extraction contract.
 - Location: `app/src/main/java/com/recipegrabber/domain/llm/`
-- Contains: `LlmProvider.kt`, `ProviderType.kt`, `LlmProviderFactory.kt`, `LlmModels.kt`, `OpenAiProvider.kt`, `GeminiProvider.kt`, `ClaudeProvider.kt`, `KimiProvider.kt`.
-- Depends on: `PreferencesRepository` for model/API key selection, `AppLogger`, Retrofit or OkHttp, Gson, local `Recipe`, `Ingredient`, and `Step` entities.
-- Used by: `ExtractRecipeUseCase.kt`, `RecipeListViewModel.kt`, onboarding and settings UI for provider/model selection.
+- Contains: provider interface, factory, provider implementations, request/response helpers, and model definitions.
+- Depends on: HTTP clients, settings, entities, and logging.
+- Used by: `ExtractRecipeUseCase.kt` and provider selection/onboarding code.
 
-**Repository Layer:**
-- Purpose: Provide app-facing data APIs over Room and DataStore.
-- Location: `app/src/main/java/com/recipegrabber/data/repository/`
-- Contains: `RecipeRepository.kt`, `PreferencesRepository.kt`.
-- Depends on: DAOs in `app/src/main/java/com/recipegrabber/data/local/dao/`, DataStore preferences, Hilt application context.
-- Used by: Viewmodels, use cases, `MainActivity.kt`, `ClipboardMonitorService.kt`, and `GoogleDriveService` callers.
-
-**Local Persistence:**
-- Purpose: Store recipes, ingredients, and steps in a relational database.
-- Location: `app/src/main/java/com/recipegrabber/data/local/`
-- Contains: `RecipeDatabase.kt`, `Migrations.kt`, DAOs in `data/local/dao/`, entities in `data/local/entity/`.
-- Depends on: Room annotations and runtime.
-- Used by: `DatabaseModule.kt` and `RecipeRepository.kt`.
-
-**Remote Services:**
-- Purpose: Wrap external API/service concerns behind injectable singleton classes.
-- Location: `app/src/main/java/com/recipegrabber/data/remote/`
-- Contains: `GoogleDriveService.kt` and `apify/ApifyService.kt`.
-- Depends on: Google Sign-In/Drive SDKs, Retrofit, OkHttp, coroutines, `AppLogger`.
-- Used by: `SettingsViewModel.kt`, `OnboardingDriveViewModel.kt`, and `ExtractRecipeUseCase.kt`.
-
-**Dependency Injection:**
-- Purpose: Provide singleton database and DAO instances and enable constructor injection.
-- Location: `app/src/main/java/com/recipegrabber/di/`
-- Contains: `DatabaseModule.kt`, `LlmModule.kt`.
-- Depends on: Hilt, Room, `RecipeDatabase`.
-- Used by: Hilt-injected activities, services, viewmodels, repositories, services, and use cases.
-
-**Foreground Service:**
-- Purpose: Monitor clipboard changes for supported video URLs.
-- Location: `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`
-- Contains: Android `Service`, notification channel creation, clipboard listener, URL validation, broadcast dispatch.
-- Depends on: `PreferencesRepository`, `AppLogger`, Android notification and clipboard APIs.
-- Used by: `MainActivity.kt` after onboarding is complete.
+**Data:**
+- Purpose: Implement persistence, remote service adapters, and logging.
+- Location: `app/src/main/java/com/recipegrabber/data/`
+- Contains: Room local data, repositories, Google Drive/Apify clients, and `AppLogger.kt`.
+- Depends on: Android storage/context, Room, DataStore, Retrofit/OkHttp, and Google SDKs.
+- Used by: domain and presentation layers through injected facades.
 
 ## Data Flow
 
-**Recipe List Flow:**
+### Primary Extraction Path
 
-1. `RecipeListScreen.kt` obtains `RecipeListViewModel` with `hiltViewModel()`.
-2. `RecipeListViewModel.kt` combines `RecipeRepository.getAllRecipesWithDetails()` with local `MutableStateFlow` search/loading/error values.
-3. `RecipeRepository.kt` delegates to `RecipeDao.getAllRecipesWithDetails()`.
-4. `RecipeDao.kt` emits `Flow<List<RecipeWithDetails>>` from Room.
-5. Compose collects `uiState` and renders recipe cards in `RecipeListScreen.kt`.
+1. Android invokes `MainActivity.onCreate()` or `onNewIntent()` for launcher/share input (`app/src/main/java/com/recipegrabber/presentation/MainActivity.kt:60`).
+2. `handleShareIntent()` passes shared text to `VideoLinkParser.findVideoUrl()` and stores only a parsed HTTPS video URL (`app/src/main/java/com/recipegrabber/presentation/MainActivity.kt:166`, `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt:10`).
+3. `ClipboardMonitorService` uses the same parser before broadcasting the canonical extracted URL (`app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt:88`, `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt:10`). The in-process receiver handles `ACTION_RECIPE_URL_DETECTED` (`MainActivity.kt:50`).
+4. `RecipeExtractionBottomSheet` calls `RecipeExtractionViewModel.startExtraction()` (`app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt:43`).
+5. `ExtractRecipeUseCase.invokeWithProgress()` validates HTTPS URLs, reads DataStore provider settings, optionally calls Apify for TikTok/Instagram, selects an LLM provider, validates the returned aggregate, and delegates saving (`app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt:43`).
+6. `SaveRecipeUseCase` passes the parent and transient child lists to `RecipeRepository` (`app/src/main/java/com/recipegrabber/domain/usecase/SaveRecipeUseCase.kt:16`).
+7. `RecipeDao.insertRecipeWithDetails()` inserts the recipe and remaps child foreign keys inside one Room transaction (`app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt:51`).
+8. The returned ID is exposed to the bottom sheet and `MainActivity` navigates to `recipe_detail/{recipeId}`.
 
-**Recipe Extraction Flow:**
+### Read and Settings Paths
 
-1. `MainActivity.kt` receives a share intent or clipboard broadcast and shows `RecipeExtractionBottomSheet.kt`.
-2. `RecipeExtractionBottomSheet.kt` calls `RecipeExtractionViewModel.startExtraction(videoUrl)`.
-3. `RecipeExtractionViewModel.kt` collects `ExtractRecipeUseCase.progress` and invokes `ExtractRecipeUseCase`.
-4. `ExtractRecipeUseCase.kt` detects platform, optionally calls `ApifyService.kt` for TikTok/Instagram scraping, reads provider settings from `PreferencesRepository.kt`, and creates a provider through `LlmProviderFactory.kt`.
-5. The selected provider in `OpenAiProvider.kt`, `GeminiProvider.kt`, `ClaudeProvider.kt`, or `KimiProvider.kt` calls its external API and maps JSON into `Recipe` with transient `ingredients` and `steps`.
-6. `SaveRecipeUseCase.kt` calls `RecipeRepository.insertRecipeWithDetails()`.
-7. `RecipeRepository.kt` inserts the parent recipe through `RecipeDao.kt`, then inserts children through `IngredientDao.kt` and `StepDao.kt`.
-8. The saved `Recipe.id` is returned to `MainActivity.kt`, which navigates to `recipe_detail/{recipeId}`.
+1. `RecipeListViewModel` collects `RecipeRepository.getAllRecipesWithDetails()` and exposes list state to `RecipeListScreen.kt`.
+2. `RecipeDetailViewModel` collects `getRecipeWithDetails(id)` and issues favorite/delete/update actions through the repository.
+3. `PreferencesRepository` maps `Context.dataStore` to typed flows; onboarding, theme, provider, credentials, Drive, and clipboard flags all use this store (`app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt:18`).
+4. `MainActivity.onStart()` reads onboarding and clipboard flags with `first()`, then starts/stops the foreground service and registers its receiver (`MainActivity.kt:173`).
 
-**Settings and Onboarding Flow:**
+**State Management:** ViewModels expose `StateFlow` UI state; Room `Flow` drives recipe screens; DataStore `Flow` drives settings and onboarding; activity-owned Compose state holds pending URL and extraction-sheet visibility.
 
-1. `MainActivity.kt` observes `PreferencesRepository.onboardingCompleted`.
-2. When false, `OnboardingScreen.kt` renders the three-step flow: Google Drive, Apify, and LLM selection.
-3. Onboarding viewmodels in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/` write selected settings to `PreferencesRepository.kt`.
-4. `OnboardingViewModel.completeOnboarding()` sets the onboarding completion flag.
-5. When true, `MainActivity.kt` shows the app `NavHost` and starts `ClipboardMonitorService.kt` in `onStart()`.
+**Extraction lifecycle:** `RecipeExtractionViewModel` keeps the active extraction `Job`, cancels it before replacement, and cancels its progress collector in `finally` (`app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt:43`). `RecipeExtractionBottomSheet` starts work keyed by `videoUrl` and resets the ViewModel on disposal through `DisposableEffect` (`app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeExtractionBottomSheet.kt:68`). Scraping fallback results are mapped to their actual error or missing-provider message (`RecipeExtractionViewModel.kt:111`).
 
-**Clipboard URL Flow:**
+## Transaction Ownership
 
-1. `MainActivity.kt` starts `ClipboardMonitorService.kt` after onboarding.
-2. `ClipboardMonitorService.kt` listens to `ClipboardManager.OnPrimaryClipChangedListener`.
-3. The service checks `PreferencesRepository.clipboardMonitorEnabled` and `PreferencesRepository.autoExtractRecipes`.
-4. For supported video URLs, the service sends `ACTION_RECIPE_URL_DETECTED` with `EXTRA_VIDEO_URL`.
-5. `MainActivity.kt` receives the broadcast, stores the URL in `pendingVideoUrl`, and opens `RecipeExtractionBottomSheet.kt` during composition.
-
-**State Management:**
-- Use `StateFlow` for most viewmodel UI state: `RecipeListViewModel.kt`, `RecipeDetailViewModel.kt`, `RecipeExtractionViewModel.kt`, `SettingsViewModel.kt`, and onboarding viewmodels.
-- Use Compose `mutableStateOf` only where local or simple Compose-backed state is already established, such as `LogViewerViewModel.kt` and screen-local dialog/search state in `RecipeListScreen.kt`.
-- Use Room `Flow` for live database-backed recipe screens and DataStore `Flow` for settings and onboarding state.
-
-## Key Abstractions
-
-**Recipe Aggregate:**
-- Purpose: Represent a recipe with ingredients and steps.
-- Examples: `app/src/main/java/com/recipegrabber/data/local/entity/Recipe.kt`, `app/src/main/java/com/recipegrabber/data/local/entity/RecipeWithDetails.kt`, `app/src/main/java/com/recipegrabber/data/local/entity/Ingredient.kt`, `app/src/main/java/com/recipegrabber/data/local/entity/Step.kt`.
-- Pattern: Room parent/child entities with `@Relation`; extracted providers temporarily attach child lists to `Recipe.ingredients` and `Recipe.steps` transient fields before saving.
-
-**Repository Facade:**
-- Purpose: Keep Room/DataStore details out of UI.
-- Examples: `app/src/main/java/com/recipegrabber/data/repository/RecipeRepository.kt`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Pattern: Injectable `@Singleton` classes exposing `Flow` reads and suspend writes.
-
-**LLM Provider Strategy:**
-- Purpose: Select recipe extraction implementation based on user settings.
-- Examples: `app/src/main/java/com/recipegrabber/domain/llm/LlmProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/LlmProviderFactory.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ProviderType.kt`.
-- Pattern: Interface plus enum-backed factory, with provider classes injected as singletons.
-
-**Use Case Orchestrator:**
-- Purpose: Encapsulate multi-step workflows and progress reporting.
-- Examples: `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`, `app/src/main/java/com/recipegrabber/domain/usecase/SaveRecipeUseCase.kt`.
-- Pattern: Callable classes with `operator fun invoke`, coroutine dispatching, `Result`/sealed result objects, and logging.
-
-**Settings Store:**
-- Purpose: Persist onboarding, API keys, selected models, and app toggles.
-- Examples: `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Pattern: DataStore `Preferences` keys exposed as typed `Flow` properties with matching suspend setters.
-
-**Log Facility:**
-- Purpose: Centralize app logging and shareable log export.
-- Examples: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/LogViewerViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/LogViewerScreen.kt`.
-- Pattern: Injectable singleton writing Android logs and app log files under internal storage.
+`RecipeDao` owns the database transaction boundary for inserting and updating the recipe aggregate. `RecipeRepository` delegates without opening a second transaction, and `SaveRecipeUseCase` owns orchestration/error logging rather than persistence atomicity. The `@Transaction` methods insert/update the recipe, remove or create children, and assign generated parent IDs (`app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt:51`). Room is built as a singleton with explicit migrations in `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt:21`.
 
 ## Entry Points
 
-**Application Class:**
-- Location: `app/src/main/java/com/recipegrabber/RecipeGrabberApplication.kt`
-- Triggers: Android process startup through `app/src/main/AndroidManifest.xml`.
-- Responsibilities: Enable Hilt injection.
+**Android application:** `app/src/main/AndroidManifest.xml` names `.RecipeGrabberApplication` and exported `presentation.MainActivity`.
 
-**Main Activity:**
-- Location: `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`
-- Triggers: Launcher intent and `ACTION_SEND` text share intent declared in `app/src/main/AndroidManifest.xml`.
-- Responsibilities: Theme setup, onboarding gate, navigation graph, share URL validation, extraction sheet state, clipboard monitor lifecycle.
+**Main activity:** `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt` receives launcher and `ACTION_SEND` text intents, gates onboarding, hosts routes, and controls clipboard monitoring.
 
-**Foreground Clipboard Service:**
-- Location: `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`
-- Triggers: `MainActivity.startClipboardMonitor()` after onboarding.
-- Responsibilities: Foreground notification, clipboard listener registration, video URL detection, recipe URL broadcast.
+**Foreground service:** `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` is non-exported, starts as `specialUse`, listens to clipboard changes, and emits package-scoped broadcasts.
 
-**Room Database:**
-- Location: `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`
-- Triggers: Hilt provider in `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt`.
-- Responsibilities: Define database version, entities, DAOs, and schema export.
+**Dependency injection:** `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt` provides Room and DAOs; `app/src/main/java/com/recipegrabber/di/LlmModule.kt` provides LLM dependencies; Hilt supplies the rest through constructors.
 
-**Hilt Modules:**
-- Location: `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt`, `app/src/main/java/com/recipegrabber/di/LlmModule.kt`
-- Triggers: Hilt component creation.
-- Responsibilities: Provide `RecipeDatabase`, `RecipeDao`, `IngredientDao`, and `StepDao`; LLM providers use constructor injection.
+## Architectural Constraints
+
+- **Modules:** One Gradle module, `:app`, configured by `settings.gradle.kts`.
+- **Runtime:** Android `minSdk 31`, `targetSdk 35`, Java/Kotlin JVM target 17 (`app/build.gradle.kts`).
+- **Global state:** Singleton repositories, use cases, services, and logger are managed by Hilt; `PreferencesRepository` owns one application DataStore delegate.
+- **Process lifecycle:** Clipboard monitoring is a foreground service with `START_STICKY`; activity registration is lifecycle-bound.
+- **Persistence model:** `Recipe` carries transient `ingredients` and `steps`; persisted relations are represented by `RecipeWithDetails`.
+
+## Current Issues Requiring Parent Action
+
+- `ExtractRecipeUseCase.kt:91` computes `contextUrl` and `description` from scraped data, but the provider call receives only `contextUrl`; scraped description is only used as a fallback description. Confirm this is intentional for provider behavior.
 
 ## Error Handling
 
-**Strategy:** Viewmodels catch action-level exceptions and map them into UI state; use cases and service wrappers return sealed results or `Result<T>`; logs are written through `AppLogger`.
-
-**Patterns:**
-- Use sealed result objects for user-facing extraction outcomes in `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`.
-- Use Kotlin `Result<T>` for provider/service operations in `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, and `app/src/main/java/com/recipegrabber/domain/llm/LlmProvider.kt`.
-- Catch exceptions inside viewmodel actions and expose `error` or `message` fields in UI state, as in `RecipeListViewModel.kt`, `RecipeDetailViewModel.kt`, `RecipeExtractionViewModel.kt`, and `SettingsViewModel.kt`.
-- Log operational failures with `AppLogger.e()` in provider, use case, service, and detail/extraction viewmodel code.
+`ExtractRecipeUseCase` returns sealed extraction outcomes and preserves coroutine cancellation. Provider/service operations commonly return `Result`; ViewModels map outcomes and exceptions into screen state. Persistence exceptions are logged and rethrown by `SaveRecipeUseCase` (`app/src/main/java/com/recipegrabber/domain/usecase/SaveRecipeUseCase.kt:26`).
 
 ## Cross-Cutting Concerns
 
-**Logging:** Use `AppLogger` from `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt` for app logs, Android logcat output, file export, and log clearing. Inject it where workflow diagnostics matter.
+**Logging:** Use `AppLogger` (`app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`) for operational diagnostics and log export.
 
-**Validation:** URL validation is duplicated in `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt` and `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`. Provider/API key readiness is validated in `ExtractRecipeUseCase.kt` and provider classes before network calls.
+**Validation:** `VideoLinkParser` centralizes HTTPS, credential-free URL, host, and video-path validation for share and clipboard entry points; extraction performs its own URI and recipe completeness checks.
 
-**Authentication:** API keys are user-provided and stored through `PreferencesRepository.kt`; Google Drive authentication is handled by `GoogleDriveService.kt` with Google Sign-In and `DriveScopes.DRIVE_APPDATA`.
+**Lifecycle cleanup:** Extraction cancellation/reset and bottom-sheet disposal are explicit; replacement URLs cancel the prior extraction before starting the new one.
 
-**Persistence:** Use Room for recipe data through `RecipeDatabase.kt` and DAO interfaces; use DataStore for app settings through `PreferencesRepository.kt`.
+**Authentication:** User provider credentials and Google authorization state are read/written through `PreferencesRepository`; no credential values belong in architecture documentation.
 
-**Networking:** Use Retrofit for Apify, OpenAI, Claude, and Kimi clients; use OkHttp directly for Gemini in `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`.
+**Preferences:** The settings store is the authority for onboarding completion, selected provider/model, provider auth mode, Drive sync, theme, clipboard monitoring, and auto-extraction toggles.
 
 ---
 
-*Architecture analysis: 2026-04-30*
+*Architecture analysis: 2026-10-13*
+*Last mapped commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*

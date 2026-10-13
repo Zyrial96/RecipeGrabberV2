@@ -1,220 +1,158 @@
+---
+last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+analysis_date: 2026-10-13
+---
+
 # Codebase Concerns
 
-**Analysis Date:** 2026-04-30
+**Analysis Date:** 2026-10-13
 
-## Verified Updates - 2026-10-12
+**Source checkpoint:** `/Users/zyrial/Projects/RecipeGrabberV2` at `8b01356b9256e7262b263274b6946303fc30fb1b` (`HEAD`).
 
-The sections below preserve the original mapping snapshot, not a current open-issue list. These findings have since changed, verified against live source and tests:
+**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`.
 
-- `RecipeDao` aggregate inserts/updates now use Room transactions. Device tests prove insert/update rollback and independent child IDs.
-- List and extraction ViewModels both delegate to `ExtractRecipeUseCase`; scraping fallback uses `invokeDirect`, not the same scraping path again.
-- The shared extraction boundary validates HTTPS URLs without embedded credentials, uses parsed hosts for platform detection, rejects invalid numeric recipe data, and retains the original source URL after CDN scraping. Regressions passed at `c29b1d2`.
-- Gemini uses `x-goog-api-key`, actual video fileData, and strict response parsing. Empty output is rejected before persistence. Other providers still lack native video ingestion.
-- JDK 17 builds, 54 unit tests, lint and minified release build passed locally. Room/Compose instrumentation passed all eight tests on the Mi 11. CI includes API 31/35 emulator jobs; the verified earlier run is linked in the device audit.
-- Google OAuth still fails with status 8 / `UNREGISTERED_ON_API_CONSOLE` on the installed build. The required API is enabled, but Android client registration remains unresolved. Drive backup/restore is not implemented.
-
-See `.planning/audits/2026-10-12-mi11-verification.md` for build hashes, evidence and remaining external prerequisites. Migration coverage, provider ingestion and broader lifecycle/privacy concerns still require separate verification.
+**Verification checkpoint:** 88 JVM tests pass. Ten native core tests passed, with three opt-in probes skipped. The 2026-10-13 OAuth/Flash-Lite device audit remains the evidence for the verified YouTube flow. Broad lifecycle/security verification remains deferred; an explicitly selected live direct-file check failed as described below.
 
 ## Tech Debt
 
-**Duplicated LLM provider pipeline:**
-- Issue: Provider classes duplicate prompt construction, HTTP client setup, response extraction, and JSON-to-`Recipe` mapping instead of sharing a common request/parser layer.
-- Files: `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`
-- Impact: Prompt changes, JSON schema changes, parsing fixes, logging policy, and timeout behavior must be changed in multiple places. Providers can drift silently.
-- Fix approach: Extract a shared recipe prompt builder, a shared `ExtractedRecipe` mapper, and provider-specific HTTP adapters behind `LlmProvider`.
+**Provider-specific extraction remains duplicated:**
+- Issue: OpenAI, Claude, Kimi, and Gemini each own request construction, prompt handling, parsing, and mapping. Only Gemini has verified native video `fileData` handling.
+- Files: `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`
+- Impact: Schema, timeout, redaction, cancellation, and capability fixes can drift.
+- Fix approach: Centralize provider-neutral prompt/schema validation and expose explicit URL/file/video capabilities.
 
-**Recipe detail writes are not transactional:**
-- Issue: `insertRecipeWithDetails` and `updateRecipeWithDetails` perform separate DAO calls for recipe, ingredients, and steps without a Room `@Transaction` boundary.
-- Files: `app/src/main/java/com/recipegrabber/data/repository/RecipeRepository.kt`, `app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt`, `app/src/main/java/com/recipegrabber/data/local/dao/IngredientDao.kt`, `app/src/main/java/com/recipegrabber/data/local/dao/StepDao.kt`
-- Impact: A failure after recipe insertion can leave recipes without ingredients/steps. A failure during update can delete old details and only partially insert replacements.
-- Fix approach: Move multi-table operations into a Room DAO with `@Transaction`, or wrap repository writes with `database.withTransaction`.
-
-**Parallel extraction paths:**
-- Issue: `RecipeExtractionViewModel` uses `ExtractRecipeUseCase`, while `RecipeListViewModel.extractRecipeFromUrl` calls the selected `LlmProvider` directly and saves the recipe itself.
-- Files: `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeListViewModel.kt`, `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeListScreen.kt`
-- Impact: The add dialog path skips Apify scraping, provider API-key prechecks, progress updates, and shared extraction error mapping. Fixes in `ExtractRecipeUseCase` do not cover all user entry points.
-- Fix approach: Route all recipe extraction entry points through `ExtractRecipeUseCase` and remove direct provider/save orchestration from `RecipeListViewModel`.
-
-**Google Drive sync is sign-in only:**
-- Issue: `GoogleDriveService` has upload/download/delete methods, and Room tracks `isSynced`, but no production flow calls `uploadRecipe`, `downloadRecipes`, `deleteRecipe`, `getUnsyncedRecipes`, or `updateSyncStatus`.
+**Drive helpers have no synchronization coordinator:**
+- Issue: Upload, download, and delete helpers exist, and Room exposes `isSynced`, but no production caller coordinates backup, restore, conflicts, or retries.
 - Files: `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/data/repository/RecipeRepository.kt`, `app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/SettingsViewModel.kt`
-- Impact: Enabling Drive sync stores sign-in state but recipes do not actually synchronize. Users can assume cloud backup exists when no upload path is active.
-- Fix approach: Add an explicit sync coordinator that observes unsynced recipes, uploads JSON to Drive, marks successful rows as synced, handles deletion, and exposes sync status/errors.
+- Impact: Enabling Drive settings does not establish backup or recovery semantics.
+- Fix approach: Add a worker/coordinator with remote IDs, durable state, conflict policy, deletion handling, and visible status.
 
-**Foreground clipboard service lifecycle is coarse:**
-- Issue: `MainActivity.onStart` starts `ClipboardMonitorService` whenever onboarding is complete, regardless of `clipboardMonitorEnabled`; the service checks the setting only after clipboard changes.
-- Files: `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`, `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-- Impact: The foreground notification and service lifecycle can exist even when monitoring is disabled, and stopping/disabling behavior is not centralized.
-- Fix approach: Start/stop the service based on `clipboardMonitorEnabled`, handle setting changes from `SettingsViewModel`, and call `stopSelf` when disabled.
+**List search loads all detailed data before filtering:**
+- Issue: `RecipeListViewModel` collects every recipe with ingredients and steps and filters in memory; the DAO search query is unused by the display path.
+- Files: `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeListViewModel.kt:45-69`, `app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt:29-34`
+- Impact: Room work, memory, and recomposition grow with recipe count.
+- Fix approach: Query summary rows in Room, debounce input, and load details only for visible/detail screens.
 
 ## Known Bugs
 
-**Apify fallback retry repeats the same failing path:**
-- Symptoms: For TikTok/Instagram with an Apify key, `ExtractRecipeUseCase` returns `ScrapingFailed` when Apify returns null. `RecipeExtractionViewModel` retries by calling the same use case with the same URL and settings, so it reaches the same Apify failure path again.
-- Files: `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`
-- Trigger: Start extraction for TikTok or Instagram when Apify scraping fails and an Apify key is configured.
-- Workaround: Disable or clear the Apify key before retrying direct LLM extraction.
+**No independent full remote-file acceptance:**
+- Symptoms: `VideoLinkParser` accepts safe direct HTTPS MP4/WebM/MOV links and shared text, and native payload coverage passes. A real Commons WebM returned HTTP 400 with `URL_UNREACHABLE-UNREACHABLE_5xx` from Google's fetcher; the same origin responded HTTP 200 from the Mac. Remote-file extraction/persistence acceptance is not established.
+- Files: `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`
+- Trigger: Extract a real remote MP4/WebM/MOV URL through each supported provider and device entry point.
+- Workaround: Use the verified public YouTube plus Gemini Flash-Lite flow.
 
-**Settings screen cannot initiate Google Drive sign-in:**
-- Symptoms: The Settings toggle calls `setDriveSyncEnabled(true)`, which only emits a snackbar message; `SettingsScreen` has no `ActivityResultLauncher` or button that calls `getSignInIntent`.
-- Files: `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/SettingsViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/GoogleDriveStep.kt`
-- Trigger: Skip Drive sign-in during onboarding, then try to enable Drive sync from Settings.
-- Workaround: Use the onboarding Drive step path where `GoogleDriveStep` launches `getSignInIntent`.
-
-**Unit tests do not run with the installed JDK:**
-- Symptoms: `./gradlew test` fails during Kotlin DSL initialization with `java.lang.IllegalArgumentException: 25.0.1`; `java -version` reports OpenJDK `25.0.1`.
-- Files: `gradle/wrapper/gradle-wrapper.properties`, `gradle.properties`, `build.gradle.kts`, `app/build.gradle.kts`
-- Trigger: Run Gradle with JDK 25.
-- Workaround: Install and run Gradle with JDK 17, or upgrade Gradle/Kotlin tooling to versions that support the installed JDK.
-
-**JUnit 5 test configuration is incomplete:**
-- Symptoms: Test sources import JUnit Jupiter and `kotlinx.coroutines.test.runTest`, but `app/build.gradle.kts` does not configure `useJUnitPlatform()` and does not declare `kotlinx-coroutines-test`.
-- Files: `app/build.gradle.kts`, `gradle/libs.versions.toml`, `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`, `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`
-- Trigger: Run unit tests after the JDK issue is resolved.
-- Workaround: Add `testOptions.unitTests.all { it.useJUnitPlatform() }` and a `kotlinx-coroutines-test` test dependency.
+**Lifecycle fixes are unit-proven but broad device coverage remains deferred:**
+- Symptoms: `RecipeExtractionViewModel` owns and cancels the active `Job`; the sheet resets through `DisposableEffect`; three lifecycle regressions are green. Broader lifecycle/device combinations are not covered.
+- Files: `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeExtractionBottomSheet.kt`, `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`
+- Trigger: Configuration changes, process recreation, repeated share intents, or dismissal during provider/network completion.
+- Workaround: None beyond the tested cancellation behavior.
+- Status: Implemented and unit-proven; retain as a verification limit, not an unfixed defect.
 
 ## Security Considerations
 
-**API keys stored in plaintext preferences:**
-- Risk: OpenAI, Gemini, Claude, Kimi, and Apify credentials are stored directly in Jetpack DataStore preferences without encryption.
-- Files: `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/SettingsViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/LlmSelectionStep.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/ApifyStep.kt`
-- Current mitigation: UI fields use `PasswordVisualTransformation` by default.
-- Recommendations: Store secrets with Android Keystore-backed encryption, avoid exposing raw keys through long-lived UI state, and provide explicit key clearing.
+**API keys are plaintext DataStore values:**
+- Risk: OpenAI, Gemini, Claude, Kimi, and Apify keys are written directly into `Preferences`; DataStore is not encryption.
+- Files: `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt:18-40`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt:74-103`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`
+- Current mitigation: Password-style fields; keys are not committed in source.
+- Recommendations: Use Android Keystore-backed encryption, minimize raw-key UI lifetime, and test clearing/migration.
 
-**Backups are enabled while secrets are stored locally:**
-- Risk: `android:allowBackup="true"` is set, and backup rule files exclude only a `sharedpref` path named `datastore.preferences_pb`; Jetpack DataStore preferences normally live under the app files datastore path, not `sharedpref`.
-- Files: `app/src/main/AndroidManifest.xml`, `app/src/main/res/xml/backup_rules.xml`, `app/src/main/res/xml/data_extraction_rules.xml`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-- Current mitigation: Backup rules attempt to exclude `datastore.preferences_pb`.
-- Recommendations: Use correct DataStore backup exclusions for the actual file location or disable backup for secret-bearing data; encryption is still required for stored API keys.
+**Logs can contain exportable sensitive content:**
+- Risk: Exceptions, source URLs, remote identifiers, and provider/service errors are persisted and can be shared as a file.
+- Files: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt:105-153`, `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt:39-45`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt:36-53`
+- Current mitigation: Logs are app-private until explicit sharing; extraction use case avoids full URL logging.
+- Recommendations: Redact URLs, account identifiers, response bodies, run IDs, and stack traces; bound export size.
 
-**Logs contain user URLs, LLM output, account email, and errors:**
-- Risk: Logs persist to app-private files and can be exported through a share intent. Logged values include video URLs, Drive account email, LLM raw response snippets, API error bodies, recipe titles, and stack traces.
-- Files: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`
-- Current mitigation: Logs are kept under `context.filesDir/logs` and exported only through explicit UI.
-- Recommendations: Redact URLs, email addresses, API error bodies, and LLM response content before writing logs; make log export clearly user-confirmed and bounded.
+**Clipboard monitoring has permission and sensitive-data exposure:**
+- Risk: A foreground service reads clipboard content and emits matching URLs. `POST_NOTIFICATIONS` is declared, but no runtime request is evident before service start.
+- Files: `app/src/main/AndroidManifest.xml:5-8`, `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt:193-219`, `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`
+- Current mitigation: Service is `exported=false`; startup is setting-gated.
+- Recommendations: Request notification permission, centralize lifecycle, avoid clipboard payload logging, and verify clean Android 13+ installs.
 
-**Gemini API key is placed in the request URL:**
-- Risk: `GeminiProvider` sends the key as a query parameter, increasing the chance of the key appearing in network tooling, errors, proxies, or logs outside this app.
-- Files: `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`
-- Current mitigation: The app does not log the full Gemini request URL with the key.
-- Recommendations: Prefer an API-key header if supported by the target API/client, and sanitize all Retrofit/OkHttp logging before enabling network logging.
-
-**Clipboard monitoring handles sensitive OS data:**
-- Risk: The service reads clipboard contents and logs matching video URLs. Clipboard contents can be private even when they match supported host patterns.
-- Files: `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`, `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`, `app/src/main/AndroidManifest.xml`
-- Current mitigation: The service is non-exported and runs as a foreground service.
-- Recommendations: Start monitoring only after explicit opt-in, stop it when disabled, avoid logging clipboard contents, and request notification/foreground-service permissions before service start.
+**Backup rules are narrow and do not protect DataStore secrets:**
+- Risk: `allowBackup` is true and both rule files include only `sharedpref`; `PreferencesRepository` uses Jetpack DataStore `settings` under the app files datastore location. This is not a claim of backup leakage from `sharedpref`.
+- Files: `app/src/main/AndroidManifest.xml:10-14`, `app/src/main/res/xml/backup_rules.xml:2-4`, `app/src/main/res/xml/data_extraction_rules.xml:2-9`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt:18`
+- Current mitigation: Extraction is explicitly scoped to `sharedpref`.
+- Recommendations: Decide and test the intended DataStore backup policy alongside Keystore storage; do not describe current rules as encryption.
 
 ## Performance Bottlenecks
 
-**Apify polling is duplicated and fixed-delay:**
-- Problem: Instagram and TikTok scraping each poll up to 30 times with a 2-second delay, tying one extraction to roughly 60 seconds before timeout.
-- Files: `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-- Cause: The service uses identical hand-written polling loops with no shared timeout policy, cancellation status surface, or backoff.
-- Improvement path: Extract a shared `waitForRun` helper with bounded timeout, cancellation propagation, status logging, and configurable polling interval/backoff.
+**Apify polling has a fixed two-minute upper window:**
+- Problem: Instagram and TikTok poll 30 times with a two-second delay before result fetch.
+- Files: `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt:55-84`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt:123-153`
+- Cause: Duplicate loops lack a shared deadline, backoff, and status surface.
+- Improvement path: Shared cancellable polling helper with bounded backoff and progress.
 
-**Recipe list filtering is in-memory:**
-- Problem: `RecipeListViewModel` loads all recipes with details and filters the list in Compose/ViewModel state.
-- Files: `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeListViewModel.kt`, `app/src/main/java/com/recipegrabber/data/local/dao/RecipeDao.kt`
-- Cause: `getAllRecipesWithDetails` is always collected and `searchRecipes` is not used for the displayed search path.
-- Improvement path: Use DAO-level search for list queries and load details lazily for visible/detail screens when recipe count grows.
-
-**Log export reads all log files into memory:**
-- Problem: `getLogContent` reads every `.log` file and builds a single string, and `createShareIntent` blocks with `runBlocking`.
-- Files: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/LogViewerViewModel.kt`
-- Cause: Export builds a full in-memory text blob and writes from a synchronous method.
-- Improvement path: Make export suspendable, stream logs to the cache file, enforce a total retention cap, and call it from `viewModelScope`.
+**Log export materializes all logs and blocks the caller:**
+- Problem: `getLogContent` concatenates every log and `createShareIntent` calls it through `runBlocking`.
+- Files: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt:105-153`
+- Cause: No total retention/export-size limit and synchronous public call.
+- Improvement path: Stream to bounded cache output from a lifecycle-aware coroutine.
 
 ## Fragile Areas
 
-**LLM JSON parsing silently creates placeholder recipes:**
-- Files: `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`
-- Why fragile: Parser exceptions are swallowed and converted into generic placeholder `Recipe` objects. The UI receives success even when model output is malformed.
-- Safe modification: Return parser errors as `Result.failure`, validate required fields, and add tests for code-fenced JSON, extra prose, malformed JSON, empty ingredients, and provider-specific response shapes.
-- Test coverage: `app/src/test/java/com/recipegrabber/LlmProviderTest.kt` does not exercise provider parsing or API response handling.
+**Room migration history lacks matching historical schemas:**
+- Files: `app/src/main/java/com/recipegrabber/data/local/Migrations.kt:6-85`, `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`, `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`
+- Why fragile: Only schema 3 is committed while 1->2 and 2->3 manually rebuild/add columns.
+- Safe modification: Export versions 1 and 2 and use `MigrationTestHelper` for every upgrade path.
+- Test coverage: `app/src/androidTest/java/com/recipegrabber/RecipePersistenceTest.kt` does not test migrations.
 
-**Custom logger uses `GlobalScope`:**
-- Files: `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`
-- Why fragile: Background writes are detached from application lifecycle, flush failures are not surfaced, and concurrent `getLogContent` can call `flushBuffer` while a background flush is active.
-- Safe modification: Inject an application-scoped `CoroutineScope`, guard file IO with a mutex, and make export/clear operations coordinate with pending writes.
-- Test coverage: No tests cover logging rotation, export, clearing, or concurrent writes.
-
-**Room migrations are untested:**
-- Files: `app/src/main/java/com/recipegrabber/data/local/Migrations.kt`, `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`, `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`
-- Why fragile: Migration SQL copies/drops tables manually and schema export includes only version 3 in the repository.
-- Safe modification: Add Room migration tests with historical schemas for versions 1, 2, and 3 before changing entities.
-- Test coverage: `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt` mocks DAOs and does not open a Room database.
-
-**Release shrinking lacks complete external-library rules:**
-- Files: `app/proguard-rules.pro`, `app/build.gradle.kts`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-- Why fragile: Release builds enable minification, but keep rules are broad for app packages and narrow for external Google/HTTP libraries. Retrofit/Gson model reflection and Google Drive client classes need release-build verification.
-- Safe modification: Run release builds in CI and add keep rules based on actual R8 diagnostics instead of broad app-level retention.
-- Test coverage: No CI or release smoke test is detected.
+**R8 release behavior for reflection-heavy clients is weakly verified:**
+- Files: `app/proguard-rules.pro`, `app/build.gradle.kts:27-34`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
+- Why fragile: Minification is enabled, but release smoke tests for Google clients, Retrofit/Gson, and provider parsing are absent.
+- Safe modification: Inspect R8 diagnostics, add only required rules, and install a minified APK for critical flows.
+- Test coverage: No release-runtime smoke test detected.
 
 ## Scaling Limits
 
-**All user data is local-device first:**
-- Current capacity: Recipes are stored in a local Room database and optional Drive sync does not run automatically.
-- Limit: Multi-device conflict resolution, remote restore, and deletion propagation are not implemented.
-- Scaling path: Introduce a sync table with remote IDs, dirty flags, conflict strategy, and background sync scheduling.
-
-**Manual provider clients grow linearly with each provider:**
-- Current capacity: Four providers are implemented separately.
-- Limit: Adding providers multiplies prompt, parser, timeout, error, and test maintenance.
-- Scaling path: Centralize provider-neutral extraction behavior and keep provider adapters thin.
+**Local-first storage has no conflict/recovery model:**
+- Current capacity: Recipes live in Room; `isSynced` is a boolean and no sync worker is wired.
+- Limit: Multi-device edits, remote restore, deletions, and conflicts are not representable reliably.
+- Scaling path: Add remote IDs, versions, dirty/deleted states, conflict policy, and durable attempts.
 
 ## Dependencies at Risk
 
-**Desktop OAuth dependency in Android app:**
-- Risk: `com.google.oauth-client:google-oauth-client-jetty` is a Jetty-based OAuth client dependency that is not aligned with Android app flows.
-- Impact: It can increase method count, introduce desktop/server transitive dependencies, and complicate release shrinking.
-- Migration plan: Remove it if unused and rely on Android Google Sign-In / Identity Services dependencies already present in `app/build.gradle.kts`.
-
-**Deprecated LocalBroadcastManager dependency:**
-- Risk: `androidx.localbroadcastmanager:localbroadcastmanager:1.1.0` is declared but not used by the current broadcast implementation.
-- Impact: It adds stale dependency surface and can mislead future work into using deprecated local broadcasts.
-- Migration plan: Remove the dependency from `app/build.gradle.kts`; keep using package-scoped or lifecycle-scoped in-app event delivery.
+**Google API client surface exceeds the active sync feature:**
+- Risk: Android Google API/Drive dependencies are present while synchronization is not wired.
+- Files: `app/build.gradle.kts:72-74`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
+- Impact: Release size and shrinking complexity grow without backup semantics.
+- Migration plan: Keep while implementing sync; otherwise remove after product decision.
 
 ## Missing Critical Features
 
-**No automated sync worker:**
-- Problem: Drive sync has sign-in and raw API calls but no scheduling, upload, download, conflict handling, or deletion handling.
-- Blocks: Reliable backup/restore and "sync across devices" behavior described in `README.md`.
+**Reliable Drive backup/restore and synchronization:**
+- Problem: Sign-in/helpers exist, but automatic backup, restore, scheduling, conflicts, and deletion propagation are absent.
+- Blocks: Dependable cross-device recovery.
 
-**No CI/build verification detected:**
-- Problem: No GitHub Actions, Gradle CI script, or local verification wrapper is detected.
-- Blocks: Catching JDK/toolchain breakage, unit-test configuration regressions, release shrinking issues, and migration failures before release.
-
-**No runtime notification permission flow:**
-- Problem: `POST_NOTIFICATIONS` is declared, but no runtime request path is detected before starting the foreground service.
-- Blocks: Predictable foreground-service notification behavior on Android 13+.
+**Native media ingestion for non-Gemini providers:**
+- Problem: OpenAI, Claude, and Kimi accept URL-shaped input but have no live video-file ingestion proof.
+- Blocks: Equivalent extraction behavior across provider selection.
 
 ## Test Coverage Gaps
 
-**Extraction pipeline is mostly untested:**
-- What's not tested: Apify failure paths, direct fallback behavior, provider API-key validation, progress updates, malformed LLM responses, and recipe persistence after extraction.
-- Files: `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`, `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`
-- Risk: Core recipe extraction can regress without failing tests.
+**Extraction and URL-entry acceptance matrix is incomplete:**
+- What's not tested: Independent full remote-file acceptance, native/device rerun of the new parser suite, and complete social scraper-to-persistence behavior. Parser recognition, shared/clipboard wiring, fallback error display, and lifecycle regressions are covered by the current JVM suite.
+- Files: `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`, `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`, `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`, `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`, `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`
+- Risk: Network/CDN, process, and device-specific behavior can still diverge from unit-proven parsing and cancellation.
 - Priority: High
 
-**Security-sensitive storage is untested:**
-- What's not tested: API key persistence, key clearing, backup exclusion behavior, and log redaction.
-- Files: `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/res/xml/backup_rules.xml`, `app/src/main/res/xml/data_extraction_rules.xml`
-- Risk: Secrets can be stored, backed up, or exported in ways users do not expect.
+**Secret storage, backup policy, and log redaction lack behavioral tests:**
+- What's not tested: Keystore migration, actual DataStore backup policy, notification gating, and export redaction/limits.
+- Files: `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/res/xml/backup_rules.xml`, `app/src/main/res/xml/data_extraction_rules.xml`, `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/AndroidManifest.xml`
+- Risk: Privacy regressions can pass current suites.
 - Priority: High
 
-**Database behavior is mocked rather than integration-tested:**
-- What's not tested: Room constraints, cascades, search SQL, transactional writes, migrations, and schema compatibility.
-- Files: `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`, `app/src/main/java/com/recipegrabber/data/local/Migrations.kt`, `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`
-- Risk: Persistence bugs can pass DAO-mock tests.
+**Broad lifecycle and security verification is deferred:**
+- What's not tested: Clean-install notification permission flow, Keystore migration, actual DataStore backup policy, log redaction/limits, and process-death recovery across devices.
+- Files: `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`
+- Risk: The 88 passing JVM tests do not establish Android OS, backup, or process-lifecycle behavior.
 - Priority: High
 
-**Google Drive sync behavior is not tested:**
-- What's not tested: Sign-in result handling, upload/download/delete result mapping, sync state transitions, and failure messaging.
-- Files: `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/SettingsViewModel.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/OnboardingDriveViewModel.kt`
-- Risk: Drive UI can report enabled sync while remote operations do not run or fail silently.
+**Drive sync operations are not tested as a product flow:**
+- What's not tested: Orchestration, state transitions, restore conflicts, and visible failure handling.
+- Files: `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/data/repository/RecipeRepository.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/SettingsViewModel.kt`
+- Risk: Connected account or enabled setting can be mistaken for completed backup.
 - Priority: Medium
 
 ---
 
-*Concerns audit: 2026-04-30*
+*Concerns audit: 2026-10-13*

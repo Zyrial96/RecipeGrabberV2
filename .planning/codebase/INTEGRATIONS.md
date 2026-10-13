@@ -1,152 +1,104 @@
+---
+last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+analysis_date: 2026-10-13
+---
+
 # External Integrations
 
-**Analysis Date:** 2026-04-30
+**Analysis Date:** 2026-10-13
+**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
 
 ## APIs & External Services
 
-**LLM Providers:**
-- OpenAI Chat Completions - Extracts recipe JSON from a video URL prompt.
-  - Implementation: `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`
-  - Endpoint: `https://api.openai.com/v1/chat/completions`
-  - SDK/Client: Retrofit 2.11.0, OkHttp 4.12.0, Gson converter from `app/build.gradle.kts`
-  - Auth: Bearer token from DataStore key `openai_api_key` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Models: `gpt-4o` and `gpt-4o-mini` from `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`
-- Google Gemini Generative Language API - Extracts recipe JSON from a video URL prompt.
-  - Implementation: `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`
-  - Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
-  - SDK/Client: Direct OkHttp request; no generated Google AI SDK wrapper
-  - Auth: API key query parameter from DataStore key `gemini_api_key` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Models: `gemini-2.5-flash` entries from `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`
-- Anthropic Claude Messages API - Extracts recipe JSON from a video URL prompt.
-  - Implementation: `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`
-  - Endpoint: `https://api.anthropic.com/v1/messages`
-  - SDK/Client: Retrofit 2.11.0, OkHttp 4.12.0, Gson converter from `app/build.gradle.kts`
-  - Auth: `x-api-key` header from DataStore key `claude_api_key` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Version header: `anthropic-version: 2023-06-01` in `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`
-  - Models: `claude-3-5-sonnet-20241022` and `claude-3-haiku-20240307` from `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`
-- Moonshot/Kimi Chat Completions - Extracts recipe JSON from a video URL prompt.
-  - Implementation: `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`
-  - Endpoint: `https://api.moonshot.ai/v1/chat/completions`
-  - SDK/Client: Retrofit 2.11.0, OkHttp 4.12.0, Gson converter from `app/build.gradle.kts`
-  - Auth: Bearer token from DataStore key `kimi_api_key` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Models: `moonshot-v1-128k` from `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`
+**Google Gemini / Generative Language:**
+- `GeminiRequestFactory.kt` calls `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` with OkHttp.
+- API-key mode sends `x-goog-api-key`; OAuth mode sends a bearer token from `GoogleDriveService.kt`.
+- Media support is explicit: YouTube URLs become `fileData.fileUri`; direct HTTPS `.mp4`, `.webm`, and `.mov` URLs get matching MIME types. Other URLs, URL credentials, and non-HTTPS links are rejected.
+- JSON output is requested with `responseMimeType: application/json` and parsed by `GeminiResponseParser.kt`.
+- Models are declared in `app/src/main/java/com/recipegrabber/domain/llm/LlmModels.kt`; new selections default to Gemini 3.1 Flash-Lite.
+- Live status: `.planning/audits/2026-10-13-google-oauth-registration.md` verifies one public YouTube video succeeded with Flash-Lite, produced four ingredients/five steps, persisted in Room, and survived restart. This does not verify every model, URL, or generated value.
+- Current issue: Gemini 3.8 had prior HTTP 503 and timeout observations. No automatic retry or model substitution is implemented.
 
-**Video Scraping:**
-- Apify - Scrapes TikTok and Instagram video metadata before LLM extraction.
-  - Implementation: `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-  - Endpoint: `https://api.apify.com/v2/`
-  - SDK/Client: Retrofit 2.11.0, OkHttp 4.12.0, Gson converter from `app/build.gradle.kts`
-  - Auth: Bearer token from DataStore key `apify_api_key` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Actors: `apify/instagram-scraper` and `clockworks/tiktok-scraper` in `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-  - Flow: start actor run with `POST acts/{actorId}/runs`, poll `GET actor-runs/{runId}`, then fetch `GET datasets/{datasetId}/items` in `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-  - Used by: `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`
+**Other LLM providers:**
+- OpenAI, Claude, and Kimi adapters exist in `OpenAiProvider.kt`, `ClaudeProvider.kt`, and `KimiProvider.kt`.
+- Their extraction requests include the source URL as text rather than attaching actual video media; no live end-to-end video acceptance is claimed.
+- Construction and selection are centralized in `LlmProviderFactory.kt`.
 
-**Google Services:**
-- Google Sign-In + Google Drive API - Authenticates the user and stores recipe backup JSON in the Drive appDataFolder.
-  - Implementation: `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
-  - SDK/Client: `com.google.android.gms:play-services-auth:21.2.0`, `com.google.api-client:google-api-client-android:2.4.1`, and `com.google.apis:google-api-services-drive:v3-rev20240521-2.0.0` from `app/build.gradle.kts`
-  - Auth: Google Play Services account OAuth with scope `DriveScopes.DRIVE_APPDATA` in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
-  - Storage target: Drive `appDataFolder`; upload/list/delete logic in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
-  - Persisted state: `drive_sync_enabled` and `google_account_email` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-
-**Android Platform Services:**
-- Android share sheet incoming text - Accepts shared plain-text URLs.
-  - Implementation: SEND intent filter in `app/src/main/AndroidManifest.xml` and handling in `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`
-  - Auth: Not applicable
-- Android clipboard monitor foreground service - Watches clipboard for recipe/video URLs.
-  - Implementation: `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`
-  - Manifest entry: `app/src/main/AndroidManifest.xml`
-  - Permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, and `POST_NOTIFICATIONS` in `app/src/main/AndroidManifest.xml`
-  - Auth: Not applicable
+**Apify:**
+- `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt` calls `https://api.apify.com/v2/` through Retrofit.
+- It starts `apify/instagram-scraper` or `clockworks/tiktok-scraper`, polls up to 30 two-second intervals, and reads one dataset item.
+- Returned `videoUrl` is passed onward as media when present; a platform page is not itself Gemini media ingestion.
+- Social-video compatibility is not live-verified; API keys are runtime settings and are not documented.
 
 ## Data Storage
 
 **Databases:**
-- Local SQLite via Room
-  - Connection: In-app local database named `recipe_grabber_db` in `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`
-  - Client: Room database provided by `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt`
-  - Schema: `recipes`, `ingredients`, and `steps` entities in `app/src/main/java/com/recipegrabber/data/local/entity/*.kt`
-  - Versioning: database version 3 with migrations in `app/src/main/java/com/recipegrabber/data/local/Migrations.kt`
-  - Schema export: `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`
-- Android DataStore Preferences
-  - Connection: `preferencesDataStore(name = "settings")` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Client: `PreferencesRepository` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - Stores: onboarding flag, LLM provider/model selection, API keys, Drive sync state, clipboard monitor state, dark mode, and auto-extract setting.
+- Room SQLite database `recipe_grabber_db` is a singleton from `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt`.
+- `RecipeDatabase` version 3 contains `Recipe`, `Ingredient`, and `Step` entities with DAOs under `app/src/main/java/com/recipegrabber/data/local`.
+- Migrations are registered from `Migrations.kt`; schema export is enabled.
+- Live status: the audit read back the Flash-Lite recipe after app restart. Migration coverage remains a documented test gap.
 
 **File Storage:**
-- Google Drive appDataFolder for cloud recipe backup via `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
-- Local app files for logs in `context.filesDir/logs` via `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Local cache file `recipegrabber-logs.txt` for log sharing through FileProvider in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Android FileProvider configured in `app/src/main/AndroidManifest.xml` with paths in `app/src/main/res/xml/file_paths.xml`.
+- `GoogleDriveService.kt` uploads JSON to the Drive `appDataFolder`, lists JSON files, and deletes by ID.
+- Local Android storage is used by Room/DataStore; no custom media file store is detected.
 
 **Caching:**
-- No external cache service detected.
-- Gradle build caching is enabled with `org.gradle.caching=true` in `gradle.properties`.
-- Runtime persistence relies on Room/DataStore and local log files, not a cache layer.
+- No remote cache is detected. Account state/preferences are held in memory/DataStore; Gemini responses are not cached.
 
 ## Authentication & Identity
 
-**Auth Provider:**
-- Google Sign-In for Drive sync
-  - Implementation: `GoogleSignInOptions.DEFAULT_SIGN_IN`, `.requestEmail()`, and `.requestScopes(Scope(DriveScopes.DRIVE_APPDATA))` in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
-  - OAuth credential: `GoogleAccountCredential.usingOAuth2(...)` in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`
-  - UI entry points: onboarding in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/GoogleDriveStep.kt` and settings in `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`
-- API key identity for LLM and Apify services
-  - Implementation: User-entered keys persisted by `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`
-  - UI entry points: `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/LlmSelectionStep.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/ApifyStep.kt`, and `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`
+**Google OAuth:**
+- Gemini uses Android Identity AuthorizationClient with only `https://www.googleapis.com/auth/generative-language.retriever`, requested by `GoogleAiAuthorizationRequestFactory.kt`.
+- `consumeGenerativeLanguageAuthorizationResult` requires the exact scope and a nonblank access token.
+- Drive uses Google Sign-In with email and `DriveScopes.DRIVE_APPDATA`, then creates a `GoogleAccountCredential`.
+- These are separate permission flows. Tokens and account identifiers are intentionally omitted from documentation.
+- Live status: the audit records `RESULT_OK`, the Generative Language scope, and successful Flash-Lite video generation on the registered Android client. Drive backup/restore is not live-verified.
+
+**Provider API keys:**
+- Gemini, OpenAI, Claude, Kimi, and Apify credentials are read from `PreferencesRepository`; values are user-provided at runtime and must not be committed.
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- External error tracking service: None detected.
-- Local error capture: `AppLogger.e(...)` writes stack traces to local log files in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
+- No hosted error-tracking service is detected.
 
 **Logs:**
-- Local file logging in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Log directory: `context.filesDir/logs` in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Active log file: `app.log` with rotation at 5 MB in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Android Logcat output: `android.util.Log.d("RG-$tag", message)` in `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`.
-- Log viewer/export UI: `app/src/main/java/com/recipegrabber/presentation/ui/screens/LogViewerScreen.kt` and `app/src/main/java/com/recipegrabber/presentation/viewmodel/LogViewerViewModel.kt`.
+- `AppLogger` is used by providers, OAuth, Apify, and repositories. Gemini logs bounded HTTP status failures, but other adapters still log response snippets, source URLs and account identifiers. Do not describe the entire logger as sanitized; review exports before sharing.
+- `GeminiProvider.kt` maps HTTP 401/403/429/5xx responses to distinct user-facing failures.
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Android app only; no server hosting platform detected.
-- Release artifact is produced by Gradle Android build from `app/build.gradle.kts`.
+- The application is an Android APK; no server-side deployment target is detected.
 
 **CI Pipeline:**
-- None detected. No `.github/workflows/`, Bitbucket, GitLab, Fastlane, Vercel, Netlify, or Docker deployment config is present.
+- `.github/workflows/android.yml` runs JVM tests, lint, builds, and Room/Compose instrumentation on API 31 and 35 emulators.
+- CI does not perform OAuth authorization, paid generation, or live provider acceptance; external checks are explicitly selected locally.
 
 ## Environment Configuration
 
 **Required env vars:**
-- None detected. The app does not read process environment variables.
-- Required runtime secrets are user-entered and persisted in DataStore by `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`:
-  - `openai_api_key` for OpenAI
-  - `gemini_api_key` for Gemini
-  - `claude_api_key` for Claude
-  - `kimi_api_key` for Kimi/Moonshot
-  - `apify_api_key` for Apify
-- Google Drive auth uses Google Sign-In account OAuth from `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, not a checked-in secret.
+- None are required for browsing and local storage. Provider keys and Google authorization are configured interactively.
 
 **Secrets location:**
-- API keys are stored in Android DataStore Preferences named `settings`, declared in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Google account email and Drive sync flag are stored in the same DataStore via `google_account_email` and `drive_sync_enabled` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- `local.properties` is present and ignored by `.gitignore`; its contents were not used for this audit.
-- `.env` files are not detected.
-- `google-services.json` is ignored by `.gitignore` but not detected.
+- Runtime secrets reside in Android preferences supplied by the user. No secret values, account details, or private logs belong here.
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- No HTTP webhook endpoints are present; this is a client-only Android application.
-- Android launcher and share intents are declared in `app/src/main/AndroidManifest.xml`.
-- Google sign-in result is handled as an Android activity result in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/GoogleDriveStep.kt` and in view models such as `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/OnboardingDriveViewModel.kt`.
+- No server webhook is detected. Google authorization returns through PendingIntent/activity-result handling in `MainActivity.kt` and `GoogleDriveService.kt`.
 
 **Outgoing:**
-- No registered webhook callbacks detected.
-- Outgoing HTTPS calls are made directly to OpenAI, Gemini, Anthropic, Moonshot/Kimi, Apify, and Google Drive from `app/src/main/java/com/recipegrabber/domain/llm/*.kt`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`, and `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
+- The app sends HTTPS requests to Gemini, Apify, Kimi, and Google Drive. No callback URL or webhook registration is detected.
+
+## Evidence-Backed Issues Requiring Parent Action
+
+- Drive upload/list/delete helpers exist, but automatic backup, synchronization worker, and restore workflow are not implemented (`README.md`, `GoogleDriveService.kt`).
+- TikTok/Instagram scraping and returned CDN URLs lack live end-to-end acceptance evidence; keep this capability experimental.
+- The positive device path is specific to public YouTube plus Google OAuth plus Flash-Lite. Do not generalize it to 3.8, other providers, social platforms, or arbitrary direct files.
+- The prior 3.8 failures remain unresolved service behavior. The audit does not identify quota, billing, transport, or OAuth scope as the cause.
+- A live 7.14MB Commons WebM request through the share-intent path returned HTTP 400. The explicit diagnostic reported `INVALID_ARGUMENT` / `URL_UNREACHABLE-UNREACHABLE_5xx`: Google could not fetch that origin, although the Mac received HTTP 200. Direct-file remote acceptance remains open; this is not an OAuth failure.
 
 ---
 
-*Integration audit: 2026-04-30*
+*Integration audit: 2026-10-13; last_mapped_commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*

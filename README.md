@@ -7,7 +7,7 @@ Native Kotlin Android app for turning cooking videos into structured recipes, st
 | Area | Implementation and limits |
 | --- | --- |
 | Local recipes | Room storage, search, favorites, sharing and portion scaling. Saved recipes are readable offline; extraction needs network access. |
-| Gemini video input | Public YouTube URLs or HTTPS MP4/WebM/MOV URLs are attached as fileData, not just included in a prompt. Request/parsing tests use fixtures. Live extraction requires valid credentials, model access and an accessible video. |
+| Gemini video input | Public YouTube URLs or HTTPS MP4/WebM/MOV URLs are attached as fileData, not just included in a prompt. YouTube extraction has one live positive result. Direct-file payloads are device-tested, but remote acceptance remains experimental: a real Commons WebM failed Google's URL fetch with HTTP 400. External files must be accessible to Google's fetcher, not only to the phone/Mac; see [Google's input limits](https://ai.google.dev/gemini-api/docs/file-input-methods). |
 | TikTok / Instagram | Optional Apify scrapers attempt to obtain direct media URLs. Platform pages are not video files. Scraper reliability and returned CDN URL compatibility are not verified end to end. |
 | Other AI adapters | OpenAI, Claude and Kimi adapters exist, but send URL text instead of actual video content. Their output is not verified video extraction. |
 | Google OAuth | Gemini has an AuthorizationClient consent flow. Google Cloud registration for the exact package/signing certificate is required. An account picker is not proof of API authorization. |
@@ -58,7 +58,7 @@ app/src/main/java/com/recipegrabber/
   service/            Clipboard foreground service
 app/src/test/          JUnit 5 / MockK tests
 app/src/androidTest/   Room and Compose tests with AndroidJUnitRunner
-.planning/codebase/    GSD map: historical snapshot, verify live source
+.planning/codebase/    GSD map refreshed 2026-10-13; verify source checkpoint
 .planning/audits/      Audit evidence and verification limits
 ```
 

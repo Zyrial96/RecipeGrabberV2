@@ -1,110 +1,94 @@
+---
+last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+analysis_date: 2026-10-13
+---
+
 # Technology Stack
 
-**Analysis Date:** 2026-04-30
+**Analysis Date:** 2026-10-13
+**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
 
 ## Languages
 
 **Primary:**
-- Kotlin 2.0.0 - Android application source in `app/src/main/java/com/recipegrabber/**`, configured by `gradle/libs.versions.toml` and `app/build.gradle.kts`.
+- Kotlin 2.0.0 - Android application, domain logic, data access, Compose UI, unit and instrumentation tests (`app/src/main` and `app/src/test`)
+- XML - Android manifest and resources (`app/src/main/AndroidManifest.xml`, `app/src/main/res`)
 
 **Secondary:**
-- Java 17 bytecode target - Android compile options and Kotlin JVM target in `app/build.gradle.kts`; project property `java.version=17` in `gradle.properties`.
-- XML - Android manifest and resources in `app/src/main/AndroidManifest.xml`, `app/src/main/res/values/*.xml`, `app/src/main/res/xml/*.xml`, and launcher resources in `app/src/main/res/drawable/*.xml`.
-- Kotlin Gradle DSL - Build configuration in `settings.gradle.kts`, `build.gradle.kts`, and `app/build.gradle.kts`.
-- TOML - Gradle version catalog in `gradle/libs.versions.toml`.
-- JSON - Room schema output in `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json` and project-side model routing config in `openclaw-routing-config.json`.
+- Kotlin DSL - Gradle configuration (`build.gradle.kts`, `app/build.gradle.kts`, `gradle/libs.versions.toml`)
+- Java - Generated Hilt/KSP/Room output only (`app/build/generated`); do not add hand-written code there
 
 ## Runtime
 
 **Environment:**
-- Android app runtime with `minSdk = 33`, `targetSdk = 35`, and `compileSdk = 35` in `app/build.gradle.kts`.
-- JVM 17 for compilation via `sourceCompatibility = JavaVersion.VERSION_17`, `targetCompatibility = JavaVersion.VERSION_17`, and `kotlinOptions.jvmTarget = "17"` in `app/build.gradle.kts`.
-- Gradle wrapper 8.7 from `gradle/wrapper/gradle-wrapper.properties`.
+- Android API 31 minimum, API 35 target and compile SDK (`app/build.gradle.kts`)
+- Java 17 source/target and Kotlin JVM target (`app/build.gradle.kts`)
 
 **Package Manager:**
-- Gradle wrapper (`./gradlew`) with repositories `google()`, `mavenCentral()`, and `gradlePluginPortal()` in `settings.gradle.kts`.
-- Dependency versions are centralized in `gradle/libs.versions.toml`.
-- Lockfile: Not detected. No Gradle dependency lock files are present in the project root or `gradle/`.
+- Gradle wrapper (`gradlew`, `gradle/wrapper`)
+- Lockfile: Gradle dependency locking is not detected; the version catalog is `gradle/libs.versions.toml`
 
 ## Frameworks
 
 **Core:**
-- Android Gradle Plugin 8.5.2 - Android application build plugin in `gradle/libs.versions.toml` and `app/build.gradle.kts`.
-- Jetpack Compose BOM 2024.06.00 - Declarative UI in `app/src/main/java/com/recipegrabber/presentation/ui/**`; enabled by `buildFeatures.compose = true` in `app/build.gradle.kts`.
-- Material 3 - UI components and theme in `app/src/main/java/com/recipegrabber/presentation/ui/theme/Theme.kt`, `app/src/main/java/com/recipegrabber/presentation/ui/screens/*.kt`, and `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/*.kt`.
-- Navigation Compose 2.7.7 - In-app navigation in `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`.
-- AndroidX Lifecycle 2.8.4 - ViewModel and StateFlow-driven UI state in `app/src/main/java/com/recipegrabber/presentation/viewmodel/*.kt` and onboarding view models in `app/src/main/java/com/recipegrabber/presentation/ui/screens/onboarding/*ViewModel.kt`.
-- Hilt 2.51.1 - Dependency injection through `@HiltAndroidApp` in `app/src/main/java/com/recipegrabber/RecipeGrabberApplication.kt`, modules in `app/src/main/java/com/recipegrabber/di/*.kt`, and `@HiltViewModel` view models.
-- Room 2.6.1 - Local SQLite persistence in `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`, DAOs in `app/src/main/java/com/recipegrabber/data/local/dao/*.kt`, entities in `app/src/main/java/com/recipegrabber/data/local/entity/*.kt`, migrations in `app/src/main/java/com/recipegrabber/data/local/Migrations.kt`, and schema export in `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`.
-- AndroidX DataStore Preferences 1.1.1 - User settings and API key storage in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Retrofit 2.11.0 + Gson converter - REST clients for OpenAI, Anthropic, Moonshot/Kimi, and Apify in `app/src/main/java/com/recipegrabber/domain/llm/*.kt` and `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`.
-- OkHttp 4.12.0 - HTTP client with explicit timeouts in `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`, and `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`.
-- Google Play Services Auth 21.2.0 + Google API Client/Drive SDK - Google Drive sign-in and appDataFolder backup in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
-- Kotlin Coroutines 1.8.1 - Async work, Flow, and Play Services task bridging across repositories, use cases, services, and view models; configured in `app/build.gradle.kts`.
-- Coil Compose 2.6.0 - Image loading dependency declared in `app/build.gradle.kts`.
+- Android Gradle Plugin 8.5.2 and Kotlin Android 2.0.0 - Android build (`gradle/libs.versions.toml`)
+- Jetpack Compose BOM 2024.06.00, Material 3, Navigation Compose 2.7.7 - UI/navigation (`app/build.gradle.kts`)
+- Hilt 2.51.1 - dependency injection (`app/src/main/java/com/recipegrabber/di`)
+- Room 2.6.1 - local recipe database and migrations (`app/src/main/java/com/recipegrabber/data/local`)
+- AndroidX DataStore Preferences 1.1.1 - persisted settings (`PreferencesRepository.kt`)
 
 **Testing:**
-- JUnit Jupiter 5.11.2 - Unit test API and engine declared in `gradle/libs.versions.toml` and `app/build.gradle.kts`; tests in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt` and `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- MockK 1.13.12 - Mocking in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`; Android variant declared for instrumentation tests in `app/build.gradle.kts`.
-- AndroidX Test JUnit 1.2.1 - Instrumentation test dependency declared in `app/build.gradle.kts`.
-- Robolectric 4.12.2 - Version declared in `gradle/libs.versions.toml`; not wired into `app/build.gradle.kts`.
+- JUnit Jupiter 5.11.2, MockK 1.13.12, and coroutines-test 1.8.1 - JVM tests (`app/src/test`)
+- AndroidX JUnit 1.2.1, Test Runner 1.6.2, and Compose UI test - device tests (`app/src/androidTest`)
 
 **Build/Dev:**
-- KSP 2.0.0-1.0.24 - Annotation processing for Hilt and Room in `app/build.gradle.kts`, including Room schema output argument `room.schemaLocation`.
-- R8/ProGuard - Release minification enabled in `app/build.gradle.kts`; keep rules in `app/proguard-rules.pro`.
-- Android Studio/IntelliJ project metadata - `.idea/` and `.vscode/settings.json` are present; `.idea/` is ignored by `.gitignore`.
+- KSP 2.0.0-1.0.24 - Room/Hilt code generation
+- GitHub Actions Android workflow - tests, lint, builds, and API 31/35 instrumentation (`.github/workflows/android.yml`)
 
 ## Key Dependencies
 
 **Critical:**
-- `androidx.room:room-runtime`, `androidx.room:room-ktx`, and `androidx.room:room-compiler` 2.6.1 - Own the local recipe database in `app/src/main/java/com/recipegrabber/data/local/RecipeDatabase.kt`.
-- `androidx.datastore:datastore-preferences` 1.1.1 - Stores onboarding status, provider selection, API keys, Drive sync flag, clipboard monitor flag, and theme settings in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- `com.google.dagger:hilt-android` and `hilt-android-compiler` 2.51.1 - Provides app-wide services, repositories, database, and view models from `app/src/main/java/com/recipegrabber/di/*.kt`.
-- `com.squareup.retrofit2:retrofit` 2.11.0 and `converter-gson` 2.11.0 - Used for typed HTTP integrations in `app/src/main/java/com/recipegrabber/domain/llm/OpenAiProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/ClaudeProvider.kt`, `app/src/main/java/com/recipegrabber/domain/llm/KimiProvider.kt`, and `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`.
-- `com.squareup.okhttp3:okhttp` 4.12.0 - Used directly in `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt` and as the Retrofit client in other providers.
-- `com.google.android.gms:play-services-auth:21.2.0` and Google Drive API dependencies - Required by `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
-- `androidx.compose.material3:material3` and Compose UI libraries - Main UI surface in `app/src/main/java/com/recipegrabber/presentation/ui/screens/*.kt`.
+- `androidx.room:*:2.6.1` - recipe, ingredient, and step persistence
+- `com.google.dagger:hilt-android:2.51.1` - application services and ViewModels
+- `com.squareup.okhttp3:okhttp:4.12.0` - Gemini transport and cancellation
+- `com.squareup.retrofit2:retrofit:2.11.0` - Apify and Kimi clients
+- Google Identity/Play Services Auth - OAuth flows
+- Google API client Android 2.4.1 and Drive API v3 revision 20240521 - Drive app-data operations
 
 **Infrastructure:**
-- `androidx.navigation:navigation-compose` 2.7.7 - Route graph in `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`.
-- `androidx.hilt:hilt-navigation-compose` 1.2.0 - Compose `hiltViewModel()` usage in screens such as `app/src/main/java/com/recipegrabber/presentation/ui/screens/SettingsScreen.kt`.
-- `org.jetbrains.kotlinx:kotlinx-coroutines-play-services` 1.8.1 - Awaits Google sign-out tasks in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
-- `androidx.localbroadcastmanager:localbroadcastmanager` 1.1.0 - Declared in `app/build.gradle.kts`; clipboard flow uses Android service/broadcast patterns in `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` and `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`.
-- `io.coil-kt:coil-compose` 2.6.0 - Declared in `app/build.gradle.kts` for image loading support.
+- Gson converter/factory - JSON for Retrofit, Gemini, and Drive
+- Coil Compose 2.6.0 - image loading
+- kotlinx.coroutines 1.8.1, including Play Services integration - async work
 
 ## Configuration
 
 **Environment:**
-- Runtime API keys are configured by the user in onboarding/settings and persisted via DataStore keys in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`: `openai_api_key`, `gemini_api_key`, `claude_api_key`, `kimi_api_key`, and `apify_api_key`.
-- Google Drive state is persisted via `drive_sync_enabled` and `google_account_email` in `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`; OAuth account credentials are handled by Google Play Services in `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`.
-- `.env` files: Not detected.
-- `local.properties` is present and ignored by `.gitignore`; do not depend on committed values from `local.properties`.
-- `google-services.json` is ignored by `.gitignore` but not detected in the project root or `app/`; Google Drive auth is implemented through Play Services sign-in, not Firebase config.
+- Runtime settings are stored by `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
+- API keys are entered through Settings/onboarding and remain outside source control.
+- Google OAuth depends on package `com.recipegrabber` and the installed signing-certificate registration documented in `.planning/audits/2026-10-13-google-oauth-registration.md`.
 
 **Build:**
-- Root build plugins: `build.gradle.kts`.
-- App build configuration: `app/build.gradle.kts`.
-- Version catalog: `gradle/libs.versions.toml`.
-- Gradle properties: `gradle.properties`.
-- Gradle wrapper: `gradle/wrapper/gradle-wrapper.properties`.
-- Project settings and repositories: `settings.gradle.kts`.
-- ProGuard/R8 rules: `app/proguard-rules.pro`.
-- Android manifest permissions and components: `app/src/main/AndroidManifest.xml`.
-- Room schema export: `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`.
+- `settings.gradle.kts` defines the project/repositories.
+- `gradle/libs.versions.toml` is the dependency/version catalog.
+- `app/build.gradle.kts` defines SDK levels, Java 17, Compose, KSP, release minification, and tests.
+- `app/proguard-rules.pro` is used for minified release builds.
 
 ## Platform Requirements
 
 **Development:**
-- Use JDK 17, matching `java.version=17` in `gradle.properties` and JVM target settings in `app/build.gradle.kts`.
-- Use Android SDK API 35 for compile/target and API 33+ for device/emulator runtime.
-- Use Gradle via `./gradlew`; wrapper version is 8.7 from `gradle/wrapper/gradle-wrapper.properties`.
-- Use Android Studio with Kotlin 2.0.0 and AGP 8.5.2 compatibility; README lists Android Studio Hedgehog or later in `README.md`.
+- Android SDK/API 35 and Java 17 are required by the module configuration.
+- An authorized Android device/emulator is required for `connectedDebugAndroidTest`; external OAuth/video checks are opt-in.
 
 **Production:**
-- Deployment target is an Android APK/AAB for application ID `com.recipegrabber`, version `2.0.0`, version code `1` from `app/build.gradle.kts`.
-- Release builds enable minification and use `app/proguard-rules.pro`.
-- No web hosting, server runtime, container, or CI/CD deployment target is detected in `.github/`, root config, or build files.
+- The deliverable is an Android APK; release builds are minified but unsigned according to `CONTRIBUTING.md`.
+- Network access is required for extraction and integrations; local recipe browsing and Room persistence work offline.
+
+## Current Capability Boundary
+
+- The source implements Gemini API-key and Google OAuth modes, three additional LLM adapters, Google Drive helpers, and Apify scrapers.
+- The dated device audit live-verified Google OAuth plus one public YouTube extraction with Gemini 3.1 Flash-Lite, including Room persistence and restart readback.
+- Gemini 3.8 Flash had observed HTTP 503 and timeout failures in the same audit; this is an external observation, not a proven stack defect or OAuth-scope diagnosis.
 
 ---
 
-*Stack analysis: 2026-04-30*
+*Stack analysis: 2026-10-13; last_mapped_commit: `8b01356b9256e7262b263274b6946303fc30fb1b`*

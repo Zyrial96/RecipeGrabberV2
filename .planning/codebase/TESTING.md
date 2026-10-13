@@ -1,239 +1,91 @@
+---
+last_mapped_commit: 8b01356b9256e7262b263274b6946303fc30fb1b
+analysis_date: 2026-10-13
+---
+
 # Testing Patterns
 
-**Analysis Date:** 2026-04-30
-
-## Verified Updates - 2026-10-12
-
-The remainder is the original mapping snapshot. Current `app/build.gradle.kts` enables JUnit Platform and declares the AndroidJUnitRunner and Compose test dependencies; unused MockK Android was removed. JDK 17 is available at `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home` on the verified Mac.
-
-- `testDebugUnitTest`: 54 tests, no failures/errors, at code commit `c29b1d2`.
-- `lintDebug`, `assembleDebug` and minified `assembleRelease`: successful on that code.
-- `RecipePersistenceTest`: four in-memory Room tests covering independent recipe details, transaction rollback, favorites and cascading deletion.
-- `RecipeDetailScreenTest`: four Compose device tests covering localized portions, minimum servings, favorites and confirmed deletion/navigation. The synthetic detail screenshot is not live video extraction evidence.
-- Latest installed APK passed all eight instrumentation tests on Xiaomi Mi 11 / API 31. CI runs the same suite on API 31/35 emulators, after build checks.
-- `ExtractionAuthenticationTest` covers authentication/error/cancellation routing, rejected incomplete or numerically invalid output, source preservation after scraping, and host-based platform detection. No private credentials or paid live API calls are used.
-
-Run `./gradlew connectedDebugAndroidTest` on an authorized device/emulator. Check the device audit for exact APK hashes and independently verified hosted results. OAuth authorization and actual media extraction remain separate external acceptance tests.
+**Analysis Date:** 2026-10-13
+**Last mapped commit:** `8b01356b9256e7262b263274b6946303fc30fb1b`
 
 ## Test Framework
 
-**Runner:**
-- JUnit Jupiter 5.11.2 is declared through `libs.junit`, `libs.junit.params`, and `libs.junit.engine` in `gradle/libs.versions.toml`.
-- Unit test dependencies are declared in `app/build.gradle.kts` with `testImplementation(libs.junit)`, `testImplementation(libs.junit.params)`, `testImplementation(libs.mockk)`, and `testRuntimeOnly(libs.junit.engine)`.
-- Android instrumentation dependencies are declared in `app/build.gradle.kts` with `androidTestImplementation(libs.androidx.junit)` and `androidTestImplementation(libs.mockk.android)`.
-- JUnit Platform activation is not configured: no `testOptions { unitTests.all { useJUnitPlatform() } }` block is present in `app/build.gradle.kts`.
-- `kotlinx.coroutines.test.runTest` is imported in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`, but `kotlinx-coroutines-test` is not declared in `gradle/libs.versions.toml` or `app/build.gradle.kts`.
-- The current shell uses OpenJDK 25.0.1. `./gradlew test --dry-run --stacktrace` fails during Gradle Kotlin DSL initialization with `IllegalArgumentException: 25.0.1`. The project declares Java 17 source/target compatibility in `app/build.gradle.kts` and `java.version=17` in `gradle.properties`, but no local JDK 17 installation is detected by `/usr/libexec/java_home -V`.
+**Runner and dependencies:**
+- JVM tests use JUnit Jupiter 5.11.2, MockK 1.13.12, and `kotlinx-coroutines-test`, declared in `gradle/libs.versions.toml` and wired in `app/build.gradle.kts`.
+- `app/build.gradle.kts` enables `unitTests.all { it.useJUnitPlatform() }`.
+- Android tests use `androidx.test.runner.AndroidJUnitRunner`, AndroidX JUnit and Compose UI test JUnit4. MockK is configured in the JVM source set, not as an Android-test dependency.
 
-**Assertion Library:**
-- JUnit Jupiter assertions are used: `Assertions.assertEquals` and `Assertions.assertTrue` in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt` and `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-
-**Run Commands:**
+**Run commands:**
 ```bash
-./gradlew test                         # Run all local JVM unit tests when a compatible JDK is active
-./gradlew testDebugUnitTest            # Run debug variant JVM unit tests
-./gradlew connectedAndroidTest         # Run instrumentation tests on a device or emulator
-./gradlew lint                         # Run Android lint checks
+./gradlew testDebugUnitTest
+./gradlew lintDebug assembleDebug assembleRelease
+./gradlew connectedDebugAndroidTest
 ```
+
+`.github/workflows/android.yml` runs Java 17, executes unit tests, lint, and both APK builds in `build`, then runs instrumentation on API 31 and API 35 emulator matrix entries. Reports are uploaded from `app/build/reports/`, `app/build/test-results/`, and `app/build/outputs/androidTest-results/`.
+
+## Current Evidence
+
+- `/tmp/recipegrabber-lifecycle-build.txt` records successful `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`, and `assembleRelease` tasks, ending with `BUILD SUCCESSFUL`.
+- Live XML under `app/build/test-results/testDebugUnitTest/` totals 88 JVM tests with zero failures, errors, or skips.
+- `VideoLinkParserTest` covers URL parsing and unsafe input handling in `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`.
+- `RecipeExtractionLifecycleTest` covers the extraction lifecycle and records three regressions that failed before fixes and passed after the fixes in `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`.
+- `VideoInputTest` is an Android test with two cases validating Shorts and MP4/WebM/MOV request payloads plus unsafe inputs without external network access: `app/src/androidTest/java/com/recipegrabber/VideoInputTest.kt`.
+- At production checkpoint `8324c13`, the Mi 11 suite passed ten core tests and skipped three opt-in probes in 9.203 seconds (`/tmp/recipegrabber-final-device-tests.txt`). VideoInputTest covers native payload construction, not remote media retrieval.
+- After updating the opt-in probe, the installed test APK's default suite again passed ten tests and skipped three in 8.918 seconds (`/tmp/recipegrabber-current-device-tests.txt`).
+- A separately selected live WebM diagnostic failed with HTTP 400 / `INVALID_ARGUMENT` and `URL_UNREACHABLE-UNREACHABLE_5xx`. This is external failure evidence, not a default-suite failure or successful media acceptance. The probe can select `probeModel` and `probeVideoUrl` explicitly; flags remain disabled in CI.
 
 ## Test File Organization
 
-**Location:**
-- JVM unit tests are placed under `app/src/test/java/com/recipegrabber/`.
-- Android instrumentation source set exists only by Gradle convention; no files are present under `app/src/androidTest/`.
-- Tests are package-level under `com.recipegrabber` rather than mirroring production packages exactly.
+**JVM unit tests:**
+- Place local tests under `app/src/test/java/com/recipegrabber/`. Current coverage includes provider HTTP/request parsing, authentication routing, model defaults, onboarding, portion scaling, recipe-list extraction, extraction lifecycle, URL parsing, and repository delegation.
+- Keep filenames ending in `Test.kt`, with classes named after the subject plus `Test`.
 
-**Naming:**
-- Use `*Test.kt` filenames: `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`, `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Test classes use production subject names plus `Test`: `LlmProviderTest`, `RecipeRepositoryTest`.
-- Individual tests use backtick names with behavior phrasing: `should create valid Recipe entity`, `should insert recipe successfully`.
-- Add `@DisplayName` to classes, nested groups, and tests for readable output.
-
-**Structure:**
-```
-app/src/test/java/com/recipegrabber/
-├── LlmProviderTest.kt          # Entity construction and ProviderType enum checks
-└── RecipeRepositoryTest.kt     # Repository delegation tests with mocked DAOs
-```
+**Instrumentation tests:**
+- Place device tests under `app/src/androidTest/java/com/recipegrabber/`.
+- Current files include `GeminiNetworkProbeTest.kt`, `RecipeDetailScreenTest.kt`, `RecipePersistenceTest.kt`, and `VideoInputTest.kt`.
+- Keep network probes opt-in/assumption-gated; local payload validation belongs in instrumentation when it depends on Android request construction.
 
 ## Test Structure
 
-**Suite Organization:**
+Use JUnit annotations and readable display names. Repository tests group behavior with nested classes and create relaxed DAO mocks in `@BeforeEach`, as shown in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`:
+
 ```kotlin
-@DisplayName("Repository Tests")
-class RecipeRepositoryTest {
-    private lateinit var recipeDao: RecipeDao
-    private lateinit var ingredientDao: IngredientDao
-    private lateinit var stepDao: StepDao
-    private lateinit var repository: RecipeRepository
-
-    @BeforeEach
-    fun setup() {
-        recipeDao = mockk(relaxed = true)
-        ingredientDao = mockk(relaxed = true)
-        stepDao = mockk(relaxed = true)
-        repository = RecipeRepository(recipeDao, ingredientDao, stepDao)
-    }
-
-    @Nested
-    @DisplayName("Recipe Operations")
-    inner class RecipeOperations {
-        @Test
-        @DisplayName("Should insert recipe successfully")
-        fun `should insert recipe successfully`() = runTest {
-            coEvery { recipeDao.insertRecipe(any()) } returns 1L
-
-            val result = repository.insertRecipe(testRecipe)
-
-            assertEquals(1L, result)
-            coVerify { recipeDao.insertRecipe(testRecipe) }
-        }
+@Nested
+@DisplayName("Recipe Operations")
+inner class RecipeOperations {
+    @Test
+    @DisplayName("Should insert recipe successfully")
+    fun `should insert recipe successfully`() = runTest {
+        coEvery { recipeDao.insertRecipe(any()) } returns 1L
+        assertEquals(1L, repository.insertRecipe(testRecipe))
+        coVerify { recipeDao.insertRecipe(testRecipe) }
     }
 }
 ```
 
-**Patterns:**
-- Use `@Nested` inner classes to group related behavior: `Recipe Operations`, `Ingredient Operations`, and `Step Operations` in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`; `Recipe Parsing Tests` and `ProviderType Tests` in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`.
-- Use `@BeforeEach` for repeated mock setup and subject construction in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Use Arrange/Act/Assert spacing inside tests: stub with `coEvery`, call the repository, then assert and verify.
-- Use `runTest` for suspend repository calls and Flow collection in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Use `.first()` to collect a single Flow emission when DAOs return `flowOf(...)`.
+- Use `@BeforeEach` and `@AfterEach` for repeatable setup and dispatcher cleanup in JVM tests.
+- Use `runTest` for coroutine unit tests and `runBlocking` where Android instrumentation tests exercise Room directly.
+- Construct simple `Recipe`, `Ingredient`, and `Step` values directly; mock DAOs or external boundaries rather than entities.
 
-## Mocking
+## Mocking and Boundaries
 
-**Framework:** MockK 1.13.12
+- Mock `RecipeDao`, `IngredientDao`, and `StepDao` for repository delegation tests.
+- Mock `ApifyService`, `LlmProviderFactory`, and `PreferencesRepository` when testing orchestration or ViewModel behavior.
+- Do not call live LLM, Google Drive, or Apify APIs from JVM tests. Network-dependent Android probes belong in `app/src/androidTest/java/com/recipegrabber/GeminiNetworkProbeTest.kt` and must remain explicitly gated.
 
-**Patterns:**
-```kotlin
-private lateinit var recipeDao: RecipeDao
+## Fixtures, Room, and Coverage
 
-@BeforeEach
-fun setup() {
-    recipeDao = mockk(relaxed = true)
-}
+- Fixtures are private inline values/helpers in the owning test class; shared fixture directories and factories are not detected.
+- Room integration and persistence tests belong under `app/src/androidTest/java/com/recipegrabber/`, where `Room.inMemoryDatabaseBuilder` and Android database behavior can be exercised. Do not add Room integration tests under the local JVM source set merely because Room runtime dependencies are available there.
+- No Jacoco, Kover, coverage threshold, or dedicated coverage task is configured. Use Gradle XML/HTML reports for observed counts.
 
-@Test
-fun `should get all recipes as flow`() = runTest {
-    coEvery { recipeDao.getAllRecipes() } returns flowOf(listOf(testRecipe))
+## Test Types and Gaps
 
-    val recipes = repository.getAllRecipes().first()
-
-    assertEquals(1, recipes.size)
-}
-```
-
-**What to Mock:**
-- Mock DAOs when testing repository delegation and data transformation: `RecipeDao`, `IngredientDao`, and `StepDao` in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Mock external service/provider boundaries in new unit tests for use cases and ViewModels: `ApifyService` from `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`, `LlmProviderFactory` from `app/src/main/java/com/recipegrabber/domain/llm/LlmProviderFactory.kt`, `PreferencesRepository` from `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`.
-- Mock Android framework objects in local JVM tests unless using Robolectric. Robolectric is listed in `gradle/libs.versions.toml` as `robolectric = "4.12.2"` but is not declared as a dependency in `app/build.gradle.kts`.
-
-**What NOT to Mock:**
-- Do not mock simple data classes and Room entities. Construct `Recipe`, `Ingredient`, and `Step` directly as in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`.
-- Do not mock repository methods when testing repository implementation. Mock the DAO dependencies and verify DAO calls, as in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Do not hit real LLM, Google Drive, or Apify APIs in unit tests. Provider classes in `app/src/main/java/com/recipegrabber/domain/llm/` and services in `app/src/main/java/com/recipegrabber/data/remote/` require API keys and network.
-
-## Fixtures and Factories
-
-**Test Data:**
-```kotlin
-private val testRecipe = Recipe(
-    id = 1,
-    title = "Test Recipe",
-    description = "A test recipe description",
-    servings = 4,
-    prepTimeMinutes = 10,
-    cookTimeMinutes = 20,
-    sourceUrl = "https://example.com",
-    sourceType = "VIDEO",
-    thumbnailUrl = null,
-    createdAt = System.currentTimeMillis()
-)
-```
-
-**Location:**
-- Fixtures are inline inside test classes. `testRecipe` lives in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- Entity construction examples are repeated inline in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`.
-- Shared fixture/factory files are not detected under `app/src/test/java/com/recipegrabber/`.
-
-**Factory Guidance:**
-- For additional repository tests, prefer private helper functions in the same test class until duplication spans multiple files.
-- When shared fixtures become necessary, place them under `app/src/test/java/com/recipegrabber/` or mirror production package paths under `app/src/test/java/com/recipegrabber/data/`.
-
-## Coverage
-
-**Requirements:** None enforced.
-
-**View Coverage:**
-```bash
-./gradlew testDebugUnitTest             # Produces standard Gradle test reports when tests run
-```
-
-**Coverage Tools:**
-- Jacoco, Kover, and Android coverage configuration are not detected in `build.gradle.kts`, `app/build.gradle.kts`, or `gradle/libs.versions.toml`.
-- No coverage threshold or report task is configured.
-
-## Test Types
-
-**Unit Tests:**
-- Existing tests are local JVM tests under `app/src/test/java/com/recipegrabber/`.
-- `RecipeRepositoryTest` verifies repository delegation, Flow returns, and suspend DAO calls using MockK in `app/src/test/java/com/recipegrabber/RecipeRepositoryTest.kt`.
-- `LlmProviderTest` verifies entity construction and `ProviderType` enum values in `app/src/test/java/com/recipegrabber/LlmProviderTest.kt`.
-
-**Integration Tests:**
-- README describes Room integration testing with `Room.inMemoryDatabaseBuilder`, but no such integration test exists under `app/src/test/java/com/recipegrabber/`.
-- Room test dependencies are declared with `testImplementation(libs.androidx.room.runtime)`, `testImplementation(libs.androidx.room.ktx)`, and `kspTest(libs.androidx.room.compiler)` in `app/build.gradle.kts`.
-
-**E2E Tests:**
-- Not used. No Espresso, Compose UI test, or Playwright-style E2E configuration is detected.
-
-**Instrumentation Tests:**
-- The Android test runner is configured as `androidx.test.runner.AndroidJUnitRunner` in `app/build.gradle.kts`.
-- No `app/src/androidTest/` files are present.
-- AndroidX JUnit and MockK Android dependencies are declared in `app/build.gradle.kts`, but Compose UI testing dependencies are not declared.
-
-## Common Patterns
-
-**Async Testing:**
-```kotlin
-@Test
-@DisplayName("Should search recipes by query")
-fun `should search recipes by query`() = runTest {
-    coEvery { recipeDao.searchRecipes("Test") } returns flowOf(listOf(testRecipe))
-
-    val recipes = repository.searchRecipes("Test").first()
-
-    assertEquals(1, recipes.size)
-    assertTrue(recipes[0].title.contains("Test"))
-}
-```
-
-**Error Testing:**
-```kotlin
-@Test
-@DisplayName("Should have correct enum values")
-fun `should have correct enum values`() {
-    assertEquals(ProviderType.OPENAI, ProviderType.valueOf("OPENAI"))
-}
-```
-
-**Repository Delegation Testing:**
-```kotlin
-@Test
-@DisplayName("Should delete recipe by id")
-fun `should delete recipe by id`() = runTest {
-    coEvery { recipeDao.deleteRecipeById(any()) } returns Unit
-
-    repository.deleteRecipeById(1L)
-
-    coVerify { recipeDao.deleteRecipeById(1L) }
-}
-```
-
-**Where To Add New Tests:**
-- Add typed error-path tests for `ExtractRecipeUseCase.ExtractionResult` in `app/src/main/java/com/recipegrabber/domain/usecase/ExtractRecipeUseCase.kt`.
-- Add ViewModel state transition tests for `RecipeExtractionViewModel` and `SettingsViewModel` under `app/src/test/java/com/recipegrabber/presentation/viewmodel/` when coroutine test dependencies are declared.
-- Add Room in-memory integration tests for migrations and DAO behavior under `app/src/test/java/com/recipegrabber/data/local/`.
+- Unit tests cover pure parsing, request construction, error routing, state logic, extraction lifecycle, and repository delegation.
+- Instrumentation covers Room persistence transactions/cascades, Compose detail interactions and Android request payload validation. The current positive native result is ten passes and three skipped diagnostics.
+- There is no separate end-to-end suite. OAuth authorization, actual media extraction, and physical-device acceptance remain external concerns and should not be inferred from local reports.
 
 ---
 
-*Testing analysis: 2026-04-30*
+*Testing analysis: 2026-10-13*
