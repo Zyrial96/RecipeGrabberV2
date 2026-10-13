@@ -21,9 +21,9 @@ class GeminiProvider @Inject constructor(
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(600, java.util.concurrent.TimeUnit.SECONDS)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .callTimeout(240, java.util.concurrent.TimeUnit.SECONDS)
+        .callTimeout(600, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     override suspend fun extractRecipeFromVideo(videoUrl: String): Result<Recipe> = withContext(Dispatchers.IO) {
@@ -88,7 +88,7 @@ Gib ein JSON-Objekt mit folgender Struktur zurück:
 
             val request = GeminiRequestFactory.buildGenerateContentRequest(model, jsonBody, requestAuth)
 
-            client.newCall(request).execute().use { response ->
+            client.newCall(request).awaitGeminiResponse().use { response ->
                 if (!response.isSuccessful) {
                     logger.e("Gemini", "API error ${response.code}")
                     return@withContext Result.failure(geminiHttpFailure(response.code))

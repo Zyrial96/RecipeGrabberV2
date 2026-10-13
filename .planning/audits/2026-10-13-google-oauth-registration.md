@@ -50,7 +50,16 @@
 - Extended the opt-in diagnostic's configurable wait, bounded to 600 seconds, following the default generation timeout in Google's published client transport. With explicit quota project and HTTP/1.1, it returned HTTP 200 after 54,010ms and passed the expected synthetic JSON assertion. This proves an actual Android OAuth generation, not merely model metadata. It does not establish that the quota header or HTTP/1.1 is necessary: the earlier comparable request had a shorter time limit, and service availability can vary.
 - Retried the actual cooking-video URL through the unchanged production flow afterward. It returned HTTP 503 after roughly nine seconds with the new actionable service-unavailability message; no recipe was saved. The successful synthetic generation is not substituted for video acceptance.
 
-## Remaining Acceptance
+## Normal Configuration And Cancellation
+
+- The comparison with the normal HTTP/2 transport and no quota-project header returned HTTP 200 after 507,497ms. The synthetic JSON assertion passed (507.653 seconds for the instrumented test). This shows neither forced HTTP/1.1 nor a quota header is required for that successful generation. It does not explain service-side latency or prove video extraction.
+- [CI run 38376009585](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38376009585) completed successfully for build and API 31/35 instrumentation at the diagnostic checkpoint `91d6995`.
+- The production read/total-call limits are now 600 seconds, based on the observed successful response exceeding the previous 180/240-second limits. Connect/write limits remain 30 seconds. HTTP failures still return immediately; no retry, billing change, extra scope, hardcoded project or model substitution was introduced.
+- Replaced blocking response-header execution with a cancellable OkHttp callback bridge. Coroutine cancellation cancels the waiting call, and responses arriving after cancellation or before cancelled dispatch are closed. Five focused tests cover success ownership, network failure and cancellation races. All 67 unit tests, lint and debug/test/release builds passed locally.
+- Installed main APK SHA-256 `01687c9b9123e1ba87d53cb6aee044dd2c770a560f8371d480f14967ba3ceee6` without clearing app data. A live video acceptance check is still required; the longer timeout is not claimed to repair HTTP 503 responses.
+- The default Mi 11 suite completed in 9.038 seconds: eight core tests passed, and all three opt-in external probes were skipped (eleven discovered tests).
+
+## Remaining Video Acceptance
 
 - Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
 - Google login, token acceptance, model metadata and one synthetic generation are demonstrated. Recipe extraction/persistence for a real video remains unproven. Isolate production request configuration and video processing from transient generation failures; do not treat the synthetic success as full acceptance.
