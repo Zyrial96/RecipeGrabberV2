@@ -66,7 +66,7 @@ RecipeGrabberV2/
 
 **`app/src/test/java/com/recipegrabber/`:** JVM tests for extraction, provider parsing/authentication, onboarding completion, scaling, and repository behavior.
 
-**`app/src/androidTest/java/com/recipegrabber/`:** Instrumented tests for Room persistence, recipe detail UI, and a Gemini network probe.
+**`app/src/androidTest/java/com/recipegrabber/`:** Instrumented tests for Room persistence, recipe detail UI, persisted recipe-card counts, media payload/rejections, and optional Gemini network probes. `RecipeCardTest` was added at `cd783e4` as a focused follow-up to the original map.
 
 **`app/schemas/`:** Committed Room schema export for `RecipeDatabase`, currently version `3` in `app/schemas/com.recipegrabber.data.local.RecipeDatabase/3.json`.
 

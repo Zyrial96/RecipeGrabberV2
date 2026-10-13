@@ -48,10 +48,10 @@ analysis_date: 2026-10-13
 ## Authentication & Identity
 
 **Google OAuth:**
-- Gemini uses Android Identity AuthorizationClient with only `https://www.googleapis.com/auth/generative-language.retriever`, requested by `GoogleAiAuthorizationRequestFactory.kt`.
-- The live Files upload test returned `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Discovery metadata lists `devstorage.read_only` for file operations. A separate optional consent flow for larger files requires approval and remains unactivated. Small inline videos work with the existing scope; no Cloud roles or account scopes were silently broadened.
-- `consumeGenerativeLanguageAuthorizationResult` requires the exact scope and a nonblank access token.
-- Follow-up at `aa4a8eb`: the user approved the additional Files permission. The statements above describe the historical base flow; Settings now offers a separate optional disclosure/authorization requesting retriever plus `devstorage.read_only`. All requested scopes and a nonblank token are checked. The combined token is fetched only for files above 8 MiB and used for upload/polling/cleanup/generation; YouTube and inline remain base-only. No token is persisted or billing/IAM/client configuration changed. The Mi 11 reached Google's unverified-app warning and awaits personal user confirmation, not another implementation approval.
+- Gemini's default Android Identity AuthorizationClient request uses only `https://www.googleapis.com/auth/generative-language.retriever`, requested by `GoogleAiAuthorizationRequestFactory.kt`. Its explicit `includeFiles` option adds `devstorage.read_only` for larger uploads; the default does not change.
+- A historical retriever-only Files upload returned `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Discovery metadata lists `devstorage.read_only` for file operations; the separately optional Settings authorization now requests it after disclosure and personal Google consent. No Cloud roles or billing settings were changed.
+- `consumeGenerativeLanguageAuthorizationResult` requires all exact requested scopes and a nonblank access token.
+- Follow-up at `aa4a8eb`: the user approved the additional Files permission. The statements above describe the historical base flow; Settings now offers a separate optional disclosure/authorization requesting retriever plus `devstorage.read_only`. All requested scopes and a nonblank token are checked. The combined token is fetched only for files above 8 MiB and used for upload/polling/cleanup/generation; YouTube and inline remain base-only. No token is persisted or billing/IAM/client configuration changed. After personal confirmation on the Mi 11, a 21.2MB WebM reached ACTIVE and saved a recipe with four ingredients/eight steps that survived restart.
 - Drive uses Google Sign-In with email and `DriveScopes.DRIVE_APPDATA`, then creates a `GoogleAccountCredential`.
 - These are separate permission flows. Tokens and account identifiers are intentionally omitted from documentation.
 - Live status: the audit records `RESULT_OK`, the Generative Language scope, and successful Flash-Lite video generation on the registered Android client. Drive backup/restore is not live-verified.
@@ -97,10 +97,10 @@ analysis_date: 2026-10-13
 
 - Drive upload/list/delete helpers exist, but automatic backup, synchronization worker, and restore workflow are not implemented (`README.md`, `GoogleDriveService.kt`).
 - TikTok/Instagram scraping and returned CDN URLs lack live end-to-end acceptance evidence; keep this capability experimental.
-- The positive device path is specific to public YouTube plus Google OAuth plus Flash-Lite. Do not generalize it to 3.8, other providers, social platforms, or arbitrary direct files.
+- Positive device evidence is specific to public YouTube and two public WebM files plus Google OAuth plus Flash-Lite. Do not generalize it to 3.8, other providers, social platforms, or arbitrary direct files.
 - The prior 3.8 failures remain unresolved service behavior. The audit does not identify quota, billing, transport, or OAuth scope as the cause.
-- A live 7.14MB Commons WebM request through the share-intent path returned HTTP 400. The explicit diagnostic reported `INVALID_ARGUMENT` / `URL_UNREACHABLE-UNREACHABLE_5xx`: Google could not fetch that origin, although the Mac received HTTP 200. Direct-file remote acceptance remains open; this is not an OAuth failure.
-- The new device downloader reaches the same origin with a policy-compliant application User-Agent, but current OAuth cannot start a Files upload (HTTP 403 / scope insufficient). See `.planning/audits/2026-10-13-files-api-verification.md`; do not infer successful upload from the isolated tests.
+- Historically, Google's URL fetcher failed with HTTP 400 / `URL_UNREACHABLE-UNREACHABLE_5xx` on Commons media. The later bounded app downloader with a policy-compliant User-Agent avoids this fetcher; small files use inline bytes and larger files use the now-verified optional Files authorization.
+- Large-file positive update: after personally granted Files permission, the 21,223,793-byte derivative reached ACTIVE and saved recipe ID 3 with four ingredients/eight steps, preserving its source and surviving restart. Remote cleanup remains best-effort, not independently proven by this positive import. See `.planning/audits/2026-10-13-files-api-verification.md`.
 - Current positive update: the same 7,482,355-byte WebM now uses inline data, produced recipe ID 2 with four ingredients and seven steps, and survived restart. No Files API object or extra permission was needed. The preceding failure statements are historical for direct-URI/Files transfer, not current small-file acceptance.
 
 ---

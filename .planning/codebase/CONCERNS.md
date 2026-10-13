@@ -7,11 +7,11 @@ analysis_date: 2026-10-13
 
 **Analysis Date:** 2026-10-13
 
-**Source checkpoint:** `/Users/zyrial/Projects/RecipeGrabberV2` at `3dfcf75a166b1af026a710d6e54c8de6b1c9c126` (`HEAD`).
+**Full-map baseline:** `/Users/zyrial/Projects/RecipeGrabberV2` at `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`. Focused follow-up verified through `cd783e4c4154f900a614eacd1776aee4f8fa8da6`.
 
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`.
 
-**Verification checkpoint:** 118 JVM tests pass; ten native core tests pass with three probes skipped. Real YouTube and one inline WebM extraction/persistence/restart are verified. Broad lifecycle/security verification remains deferred; larger Files uploads remain permission-blocked.
+**Verification checkpoint:** 121 JVM tests pass; twelve native core tests pass with three probes skipped. Real YouTube, inline WebM and 21.2MB Files WebM extraction/persistence/restart are verified on the Mi 11. The optional upload scope was personally granted. Broad lifecycle/security/format coverage remains deferred, not inferred from those cases.
 
 ## Tech Debt
 
@@ -35,17 +35,14 @@ analysis_date: 2026-10-13
 
 ## Known Bugs
 
-**Recipe list displays zero ingredients after persistence:**
-- Device evidence: the two saved recipes show `0 ingredients`, while prior read-only persistence checks and detail views establish four ingredients each.
-- Cause: `RecipeCard` reads `recipe.ingredients.size` from the embedded Room entity instead of `recipeWithDetails.ingredients.size`. Steps correctly use the relation. `RecipeListViewModel` already supplies the loaded details; no schema/data rewrite is needed.
-- File: `app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeListScreen.kt:274`.
-- Next focused fix: read the loaded relation and add a Compose card regression using an empty embedded ingredient list plus nonempty relation. Do not interrupt the pending Google consent UI with instrumentation/installation to test this independent fix.
+**Resolved: persisted ingredient-count display:**
+- At `cd783e4`, `RecipeCard` counts `recipeWithDetails.ingredients`, not the embedded transient field. Two Compose regressions failed before and pass after the fix. All three real imports now display four ingredients after restart; no schema/data rewrite was needed. See `.planning/audits/2026-10-13-recipe-list-verification.md`.
 
-**Larger file acceptance remains open:**
-- Follow-up at `aa4a8eb`: implementation approval was granted and the optional Settings flow is now implemented, with 121 green JVM tests and local builds. Its Mi 11 authorization awaits personal confirmation of Google's unverified-app warning. Earlier missing-approval/scope-factory statements below are historical; the real large-file acceptance gate remains open.
-- Symptoms: `VideoLinkParser` accepts safe direct HTTPS MP4/WebM/MOV links and shared text, and native payload coverage passes. A real Commons WebM returned HTTP 400 with `URL_UNREACHABLE-UNREACHABLE_5xx` from Google's fetcher; the same origin responded HTTP 200 from the Mac. Remote-file extraction/persistence acceptance is not established.
-- Update: `GeminiFileUploader` now downloads that media with proper application identification and uses Files API transfer. Its live upload start is rejected with HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`; the current scope remains retriever-only. Additional Cloud Storage permission needs separate user-approved consent, not a global or silent scope expansion.
-- Current update: the same WebM succeeded through the new inline path (up to 8 MiB), saved four ingredients/seven steps and reopened after restart. No extra Google permission was required. The 8-100 MiB Files branch remains unverified/permission-blocked; do not narrow the full acceptance gate to the successful small-file branch.
+**Direct-file acceptance is specific, not universal:**
+- After personal Google confirmation, the optional Files scope succeeded. A 21,223,793-byte public WebM reached ACTIVE, produced four ingredients/eight steps, saved with its original source and reopened after restart. The earlier large-file permission/acceptance blocker is resolved for this case; MP4/MOV, other origins and all provider/model combinations remain unverified.
+- Historical failure: Google's direct URL fetcher returned HTTP 400 with `URL_UNREACHABLE-UNREACHABLE_5xx` for Commons media. The subsequent bounded inline/Files transfer avoids relying on that fetcher.
+- Historical permission failure: retriever-only Files upload start returned HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. The implemented separately optional combined-scope flow resolves this; the default YouTube/inline scope remains retriever-only.
+- The small inline version separately saved four ingredients/seven steps without extra permission. Larger files retain the 100 MiB cap; this cap is not proof that every file below it works.
 - Files: `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`, `app/src/main/java/com/recipegrabber/domain/llm/GeminiProvider.kt`, `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`
 - Trigger: Extract a real remote MP4/WebM/MOV URL through each supported provider and device entry point.
 - Workaround: Use the verified public YouTube plus Gemini Flash-Lite flow.
@@ -139,7 +136,7 @@ analysis_date: 2026-10-13
 ## Test Coverage Gaps
 
 **Extraction and URL-entry acceptance matrix is incomplete:**
-- What's not tested: Independent full remote-file acceptance, native/device rerun of the new parser suite, and complete social scraper-to-persistence behavior. Parser recognition, shared/clipboard wiring, fallback error display, and lifecycle regressions are covered by the current JVM suite.
+- What's not tested: Every direct-file format/origin/provider combination and complete social scraper-to-persistence behavior. Two real WebM imports, shared/clipboard wiring, native payload/rejection tests, fallback error display and JVM lifecycle regressions have specific evidence; they do not establish the whole matrix.
 - Files: `app/src/main/java/com/recipegrabber/domain/VideoLinkParser.kt`, `app/src/main/java/com/recipegrabber/presentation/MainActivity.kt`, `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt`, `app/src/test/java/com/recipegrabber/VideoLinkParserTest.kt`, `app/src/test/java/com/recipegrabber/RecipeExtractionLifecycleTest.kt`
 - Risk: Network/CDN, process, and device-specific behavior can still diverge from unit-proven parsing and cancellation.
 - Priority: High
@@ -153,7 +150,7 @@ analysis_date: 2026-10-13
 **Broad lifecycle and security verification is deferred:**
 - What's not tested: Clean-install notification permission flow, Keystore migration, actual DataStore backup policy, log redaction/limits, and process-death recovery across devices.
 - Files: `app/src/main/AndroidManifest.xml`, `app/src/main/java/com/recipegrabber/data/repository/PreferencesRepository.kt`, `app/src/main/java/com/recipegrabber/data/logging/AppLogger.kt`, `app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt`
-- Risk: The 118 passing JVM tests do not establish Android OS, backup, or process-lifecycle behavior.
+- Risk: The 121 passing JVM tests do not establish Android OS, backup, or process-lifecycle behavior.
 - Priority: High
 
 **Drive sync operations are not tested as a product flow:**

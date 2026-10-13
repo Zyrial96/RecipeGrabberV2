@@ -39,3 +39,16 @@
 | Focused commits published to GitHub | Source commits pushed to main; map/audit publication follows this checkpoint | Verify clean synchronization after final documentation commit |
 
 The full goal is not marked achieved at this checkpoint. The remaining media acceptance must be resolved or genuinely blocked; documentation and synthetic fixtures do not substitute for a successful direct-file import. Investigate a robust Files API ingestion path or a demonstrably accessible origin without repeatedly retrying the same failing URL. Do not infer a universal OAuth, quota or billing failure from this response.
+
+## Later Acceptance Follow-Up
+
+The historical remaining direct-file gate above is now satisfied for two real WebM transfers: the 7.5MB inline import and, after personally granted optional OAuth permission, the 21.2MB Files import. Both saved structured recipes and survived restart on the user's Mi 11. The larger import reached ACTIVE and saved four ingredients/eight steps. See `2026-10-13-files-api-verification.md` for the exact source, timestamps and persistence evidence. A separately discovered persisted ingredient-count display bug was fixed and verified at `cd783e4` with two red/green Compose regressions; the current suite has 121 JVM passes, twelve native passes and three external skips. Remaining broad format/provider/lifecycle/security limits are explicitly documented, not hidden by these positive cases.
+
+## Final Objective Verification
+
+- The user's newer device instruction supersedes the original Samsung wording: final device evidence is from the connected Xiaomi Mi 11, Android 12/API 31.
+- Current runtime `cd783e4c4154f900a614eacd1776aee4f8fa8da6` is green locally and in hosted run [38421782788](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38421782788) for build and Android 31/35 instrumentation. Native external API probes remain opt-in; the real authorization/generation tests are separately recorded.
+- The seven GSD map documents exist; focused integration/architecture/test/concern updates record the subsequent optional OAuth and persisted-card changes. README and CONTRIBUTING explain reproducible commands, external prerequisites, actual capabilities and limitations without invented user/download metrics.
+- Central persistence/input/cancellation/display regressions are covered, all three real imported recipes remain saved, and the final on-device APK matches its recorded build hash. No user database clearing, billing/IAM changes or silent permission expansion occurred.
+- Focused code commits and acceptance evidence were pushed to the public repository. The last evidence/map commit is checked to contain no runtime/test/build/workflow changes against the green source checkpoint.
+- The bounded maintenance/testability/contributor-readiness objective is satisfied; this is not a production-readiness certification. Drive backup/restore, secret-storage/log-redaction hardening, broad lifecycle/migration coverage and all social-platform/provider/format combinations remain explicit next-phase work, not claims of completed functionality.

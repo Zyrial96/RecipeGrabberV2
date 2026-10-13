@@ -13,8 +13,11 @@
 - 121 JVM tests pass with zero failures/errors/skips. Full JDK 17 cached-dependency lint/debug/test/release assembly succeeded (`/tmp/recipegrabber-card-final-build.txt`).
 - Installed final APK SHA-256 matched the local build: main `107e2f96da55417b3120f19aee6974d9fd4cf640b83e22641c5dce7b4ac4c49c`; test `9520d26d9a637e80affc7708c39943e85e6c64565e351b24de627d4bef4081ab`.
 - Restarted the actual app without clearing user data. The large-file tortilla recipe shows four ingredients/eight steps, the inline tortilla recipe four/seven, and the YouTube recipe four/five. All three previous real imports remain present; native tests use their own fixtures rather than rewriting these records.
+- Additional live search smoke check: entering `Jamie` shows only the YouTube recipe with four ingredients/five steps. After an app restart the transient filter resets and all three entries/counts reappear. Directly clearing the field through the temporary automation helper was not verified; its empty-argument command was rejected by the runner, not by application logic.
 - Loopback installation server and adb reverse were stopped after installation. Temporary database snapshots from the live import were removed.
 
 ## Scope
+
+Hosted run [38421782788](https://github.com/Zyrial96/RecipeGrabberV2/actions/runs/38421782788) at `cd783e4c4154f900a614eacd1776aee4f8fa8da6` finished successfully for build and API 31/35 instrumentation. This verifies the current runtime and both new Compose tests beyond the Mi 11. The subsequent audit/map update is documentation-only.
 
 This verifies persisted ingredient-count display on the Mi 11 and the two regression fixtures. It does not independently prove model-extracted quantities or implement Google Drive backup. The separate real Google Files import is recorded in `2026-10-13-files-api-verification.md`.

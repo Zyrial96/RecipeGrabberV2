@@ -115,7 +115,7 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 
 **State Management:** ViewModels expose `StateFlow` UI state; Room `Flow` drives recipe screens; DataStore `Flow` drives settings and onboarding; activity-owned Compose state holds pending URL and extraction-sheet visibility.
 
-**Direct media:** `GeminiProvider` validates input before authorization. YouTube retains its URL media part. Direct files stream into bounded cache (100 MiB maximum). Up to 8 MiB, `GeminiFileUploader` attaches base64 inline video, avoiding Files calls and extra scope; larger files use resumable upload, ACTIVE polling and best-effort cleanup. The original source URL is retained. Google credentials never enter source requests; private media DNS and unsafe redirects are rejected. A real inline WebM import/persistence/restart is verified; larger Files uploads remain scope-blocked.
+**Direct media:** `GeminiProvider` validates input before authorization. YouTube retains its URL media part. Direct files stream into bounded cache (100 MiB maximum). Up to 8 MiB, `GeminiFileUploader` attaches base64 inline video, avoiding Files calls and extra scope; larger files use resumable upload, ACTIVE polling and best-effort cleanup. The original source URL is retained. Google credentials never enter source requests; private media DNS and unsafe redirects are rejected. Both a real inline WebM and a 21.2MB Files WebM import/persistence/restart are verified; the latter uses the separately optional combined-scope authorization.
 
 **Extraction lifecycle:** `RecipeExtractionViewModel` keeps the active extraction `Job`, cancels it before replacement, and cancels its progress collector in `finally` (`app/src/main/java/com/recipegrabber/presentation/viewmodel/RecipeExtractionViewModel.kt:43`). `RecipeExtractionBottomSheet` starts work keyed by `videoUrl` and resets the ViewModel on disposal through `DisposableEffect` (`app/src/main/java/com/recipegrabber/presentation/ui/screens/RecipeExtractionBottomSheet.kt:68`). Scraping fallback results are mapped to their actual error or missing-provider message (`RecipeExtractionViewModel.kt:111`).
 
@@ -131,7 +131,9 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 
 **Foreground service:** `app/src/main/java/com/recipegrabber/service/ClipboardMonitorService.kt` is non-exported, starts as `specialUse`, listens to clipboard changes, and emits package-scoped broadcasts.
 
-**Optional Files authorization update at `aa4a8eb`:** Settings has separate base/Files result launchers and an explicit permission disclosure. The uploader invokes a Files-token callback only after the downloaded size exceeds 8 MiB; the provider then selects a combined-scope token for file operations and generation. Base authorization remains unchanged. Real large-file acceptance awaits personal confirmation of Google's unverified-app warning on the Mi 11, not implementation approval.
+**Optional Files authorization update at `aa4a8eb`:** Settings has separate base/Files result launchers and an explicit permission disclosure. The uploader invokes a Files-token callback only after the downloaded size exceeds 8 MiB; the provider then selects a combined-scope token for file operations and generation. Base authorization remains unchanged. After personal Google confirmation, the Mi 11 successfully imported/persisted/reopened a 21.2MB WebM.
+
+**Persisted list-card update at `cd783e4`:** `RecipeCard` counts the loaded `RecipeWithDetails.ingredients` relation, never the transient embedded `Recipe.ingredients`. No repository/DAO/schema contract change is involved; two native regressions and the real imported recipes verify the fix.
 
 **Dependency injection:** `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt` provides Room and DAOs; `app/src/main/java/com/recipegrabber/di/LlmModule.kt` provides LLM dependencies; Hilt supplies the rest through constructors.
 
