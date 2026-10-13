@@ -47,7 +47,7 @@ internal class GeminiFileUploader(
                     .header("X-Goog-Upload-Header-Content-Type", mime)
                     .post(metadata.toRequestBody("application/json".toMediaType())).build()
                 val session = api.newCall(start).consumeGeminiResponse { response ->
-                    require(response.isSuccessful) { "Video-Upload konnte nicht gestartet werden (HTTP ${response.code})." }
+                    if (!response.isSuccessful) throw geminiUploadHttpFailure(response.code, response.body?.string())
                     requireNotNull(response.header("X-Goog-Upload-URL")) { "Google hat keine Upload-Adresse geliefert." }.toHttpUrl()
                 }
                 require(sameOrigin(session, apiRoot)) { "Unerwartete Video-Upload-Adresse." }
@@ -148,6 +148,18 @@ internal class GeminiFileUploader(
             return GeminiFileUploader(downloads, bounded, cacheDir, cleanupApi = cleanup)
         }
     }
+}
+
+internal fun geminiUploadHttpFailure(code: Int, response: String?): Exception {
+    val reason = runCatching {
+        JsonParser.parseString(response).asJsonObject.getAsJsonObject("error")
+            ?.getAsJsonArray("details")?.mapNotNull { it.asJsonObject.get("reason")?.asString }
+            ?.firstOrNull { it.matches(Regex("[A-Z_]{1,80}")) }
+    }.getOrNull()
+    val explanation = if (reason == "ACCESS_TOKEN_SCOPE_INSUFFICIENT") {
+        "Google-Berechtigung fuer Datei-Uploads fehlt. YouTube benoetigt diese Zusatzberechtigung nicht."
+    } else "Video-Upload konnte nicht gestartet werden."
+    return IllegalArgumentException("$explanation (HTTP $code${reason?.let { ", $it" }.orEmpty()}).")
 }
 
 internal class PublicVideoDns(private val delegate: Dns) : Dns {
