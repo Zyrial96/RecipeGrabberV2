@@ -58,6 +58,7 @@
 - Replaced blocking response-header execution with a cancellable OkHttp callback bridge. Coroutine cancellation cancels the waiting call, and responses arriving after cancellation or before cancelled dispatch are closed. Five focused tests cover success ownership, network failure and cancellation races. All 67 unit tests, lint and debug/test/release builds passed locally.
 - Installed main APK SHA-256 `01687c9b9123e1ba87d53cb6aee044dd2c770a560f8371d480f14967ba3ceee6` without clearing app data. A live video acceptance check is still required; the longer timeout is not claimed to repair HTTP 503 responses.
 - The default Mi 11 suite completed in 9.038 seconds: eight core tests passed, and all three opt-in external probes were skipped (eleven discovered tests).
+- With code commit `345a8be`, the same public cooking-video request started at 11:38:59 and returned HTTP 503 at 11:39:04 (approximately 4.6 seconds). Authorization completed without another consent screen. No successful extraction or persisted recipe is claimed. This server rejection precedes the timeout and is not fixed by increasing it; no automatic retries were made.
 
 ## Remaining Video Acceptance
 
