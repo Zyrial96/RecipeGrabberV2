@@ -8,6 +8,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused update at `575b965`:** 150 JVM tests pass; QA and main native suites each discover twenty-nine tests with twenty-five passes/four explicit external skips. Added coverage: Keystore/DataStore migration, diagnostic retention/redaction/FileProvider/XML, backup codec bounds, transport HTTP failures/cancellation/origin safety, coordinator validation-before-write, schema-3-to-4 fixture migration, UUID conflicts/rollback and confirmed Compose restore. Main device data migration is separately proven by full field comparison. Real cloud and hosted CI results are maintained in `../audits/2026-10-13-drive-integration.md`; do not infer them from these counts. After mutation tests force KSP regeneration (`--rerun-tasks`) before artifact/native verification.
+
 ## Test Framework
 
 **Runner and dependencies:**
@@ -84,7 +86,7 @@ inner class RecipeOperations {
 
 - Mock `RecipeDao`, `IngredientDao`, and `StepDao` for repository delegation tests.
 - Mock `ApifyService`, `LlmProviderFactory`, and `PreferencesRepository` when testing orchestration or ViewModel behavior.
-- Do not call live LLM, Google Drive, or Apify APIs from JVM tests. Network-dependent Android probes belong in `app/src/androidTest/java/com/recipegrabber/GeminiNetworkProbeTest.kt` and must remain explicitly gated.
+- Do not call live LLM, Google Drive, or Apify APIs from JVM tests. Android `GeminiNetworkProbeTest` and `DriveBackupLiveProbeTest` remain explicitly gated and skipped in CI; Drive live acceptance requires existing consent and preserves the local library.
 
 ## Fixtures, Room, and Coverage
 
@@ -95,7 +97,7 @@ inner class RecipeOperations {
 ## Test Types and Gaps
 
 - Unit tests cover pure parsing, request construction, error routing, state logic, extraction lifecycle, and repository delegation.
-- Instrumentation covers Room persistence transactions/cascades, Compose detail interactions and Android request payload validation. The current positive native result is ten passes and three skipped diagnostics.
+- Instrumentation covers Room persistence/cascades, Keystore, diagnostic boundaries, version-3 migration, UUID merge/conflict/rollback, Compose detail/backup controls and request payload validation. Current results are in the focused update above; baseline counts are historical.
 - There is no separate end-to-end suite. OAuth authorization, actual media extraction, and physical-device acceptance remain external concerns and should not be inferred from local reports.
 
 ---

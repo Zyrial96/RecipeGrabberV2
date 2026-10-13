@@ -8,6 +8,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused update at `575b965`:** Drive transport/coordinator use throwing suspend operations with cancellation preserved and generic ViewModel error states. Archives use an explicit allowlist and validate before writes; stable UUID conflicts never replace local aggregates. Credential migration is lossless/atomic and fails closed, with no plaintext read fallback. Logger call sites omit sensitive content before central sanitization; throwables contribute class metadata only. Manual snapshots never imply automatic sync.
+
 ## Naming Patterns
 
 **Files:**

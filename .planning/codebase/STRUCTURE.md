@@ -8,6 +8,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused update at `575b965`:** `data/security/` contains `SecretCipher`, `AndroidKeystoreSecretCipher` and `CredentialMigration`; `domain/backup/` contains `RecipeBackupCodec` and `DriveBackupCoordinator`; `data/remote/DriveBackupAuthorization.kt` and `DriveBackupTransport.kt` implement the active backup boundary. `data/logging/DiagnosticSanitizer.kt` and `PrivateLogStore.kt` bound diagnostics. Room schemas 3/4 are exported; `src/audit/` names the isolated QA app. Native credential/privacy/backup/UI tests and gated `DriveBackupLiveProbeTest` supplement the baseline tree below.
+
 ## Directory Layout
 
 ```text

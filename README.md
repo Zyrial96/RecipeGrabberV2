@@ -11,7 +11,7 @@ Native Kotlin Android app for turning cooking videos into structured recipes, st
 | TikTok / Instagram | Optional Apify scrapers attempt to obtain direct media URLs. Platform pages are not video files. Scraper reliability and returned CDN URL compatibility are not verified end to end. |
 | Other AI adapters | OpenAI, Claude and Kimi adapters exist, but send URL text instead of actual video content. Their output is not verified video extraction. |
 | Google OAuth | Gemini has an AuthorizationClient consent flow. Google Cloud registration for the exact package/signing certificate is required. An account picker is not proof of API authorization. |
-| Google Drive | Authentication and file-operation helpers exist. Automatic recipe backup, a synchronization worker and restore workflows are not implemented. |
+| Google Drive | Optional manual versioned snapshots and confirmed restore in the app-specific Drive folder. Existing recipe UUIDs/local edits are kept. No automatic sync, scheduling, deletion propagation or cloud overwrite. See the [Drive audit](.planning/audits/2026-10-13-drive-integration.md) for exact acceptance status. |
 | Clipboard | Foreground monitoring is subject to Android clipboard/background restrictions; reliable background detection on all devices is not established. Manual URL entry and Android sharing are available. |
 
 Always compare an extracted recipe with its source. Structural validation cannot prove that a model extracted the actual ingredients, quantities or preparation correctly.
@@ -47,19 +47,31 @@ UNREGISTERED_ON_API_CONSOLE indicates a registration problem; model changes or r
 
 See Google's [Android authorization guide](https://developer.android.com/identity/authorization), [Gemini OAuth setup](https://ai.google.dev/gemini-api/docs/oauth) and [video input documentation](https://ai.google.dev/gemini-api/docs/video-understanding). Never commit API keys, tokens, keystores, personal account details or full device logs. App preferences contain sensitive credentials.
 
-## Code Map
-
-### Credential Storage
+## Credential Storage
 
 API keys are stored as Android Keystore-backed AES-256-GCM encrypted DataStore values. Existing plaintext fields are migrated atomically after successful encryption; key loss/tampering fails closed and is reported in Settings. Encryption failure preserves legacy data for recovery but providers never read that plaintext fallback. Reinstall/device transfer may require entering API keys again; OAuth bearer tokens are not persisted. See the [credential-security audit](.planning/audits/2026-10-13-credential-security.md).
 
-Diagnostics omit recipe/account/response contents, sanitize common secrets, limit retention/export and discard old unknown diagnostic contents at privacy upgrade. Sharing exposes only explicit diagnostic exports. Android backup rules allow only recipe database/WAL data, not keys/settings/logs; cloud backup requires encryption support. Actual system-backup recovery is not live-verified. See the [privacy/backup-boundary audit](.planning/audits/2026-10-13-diagnostic-and-backup-boundaries.md). The dedicated Drive backup/restore workflow is still being implemented; these checks are not a production-readiness certification.
+Diagnostics omit recipe/account/response contents, sanitize common secrets, limit retention/export and discard old unknown diagnostic contents at privacy upgrade. Sharing exposes only explicit diagnostic exports. Android backup rules allow only recipe database/WAL data, not keys/settings/logs; cloud backup requires encryption support. Actual system-backup recovery is not live-verified. See the [privacy/backup-boundary audit](.planning/audits/2026-10-13-diagnostic-and-backup-boundaries.md). These checks are not a production-readiness certification.
+
+## Google Drive Backups
+
+In Settings, connect Google Drive separately from Gemini, choose **Backup now**, and use **Refresh backups** to list snapshots. **Restore** requires confirmation and adds only missing recipes; matching UUIDs and local edits always win. Repeating the same restore does not duplicate recipes. **Disconnect Drive** keeps cloud snapshots and does not sign Gemini out.
+
+Only [Drive's appDataFolder permission](https://developers.google.com/workspace/drive/api/guides/appdata) is requested. Snapshots contain recipe data only, never keys, tokens, settings or logs; access tokens are not persisted. Archives are capped at 500 recipes / 2 MiB, and completely validated before a transactional Room merge. The application does not provide end-to-end encryption for recipe snapshots. Backups are hidden from the normal Drive file UI and remain subject to Google account security and the user's ability to remove app data in Drive. This is manual backup/recovery, not automatic synchronization. No backup is created merely by connecting an account.
+
+Room version 4 assigns stable recipe UUIDs without rewriting existing content. Native tests cover schema-3 migration, local-conflict preservation and rollback; the Mi 11 main database migration retained all three recipes, twelve ingredients and twenty steps with unchanged previous fields. See the [backup-core audit](.planning/audits/2026-10-13-backup-core.md) and [Drive acceptance audit](.planning/audits/2026-10-13-drive-integration.md).
+
+On the Mi 11, a real Drive snapshot was uploaded, listed, downloaded and restored twice with zero new recipes and all existing content/IDs preserved. This proves that particular authorized same-device round trip; a clean-install/second-device or minified-release restore has not been live-verified. Google did not return account email metadata for this scope-only request, so the UI shows a generic connected state rather than claiming an account identity.
+
+## Code Map
 
 ```text
 app/src/main/java/com/recipegrabber/
   data/local/          Room entities, DAOs and database
   data/repository/     Persistence and DataStore preferences
   data/remote/         Google authorization/Drive and Apify
+  data/security/       Keystore encryption and credential migration
+  domain/backup/       Validated snapshot format and Drive coordination
   domain/llm/          Adapters, request builders and parsers
   domain/usecase/      Validated extraction and saving
   presentation/       Compose screens and ViewModels
@@ -74,7 +86,7 @@ ExtractRecipeUseCase owns validation and saving. Both list entry and shared-vide
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, Drive backup/restore, migration coverage and broader device acceptance tests.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, historical Room 1/2 migration coverage, minified-release device acceptance and broader lifecycle/device testing. Drive synchronization and scheduling are not implemented.
 
 ## License
 

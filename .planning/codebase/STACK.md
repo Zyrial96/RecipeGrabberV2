@@ -8,6 +8,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused update at `575b965`:** No new library dependency was needed. Platform Android Keystore/AES-GCM protects DataStore credentials, existing Gson validates bounded backup JSON, existing OkHttp implements cancellable fixed-origin Drive snapshots, and Android Identity supplies separate appDataFolder authorization. Room schema version is 4; isolated `audit`/`.qa` build type supports preflight without touching the user's main library. Live acceptance status remains in the Drive audit.
+
 ## Languages
 
 **Primary:**
@@ -87,7 +89,7 @@ analysis_date: 2026-10-13
 
 ## Current Capability Boundary
 
-- The source implements Gemini API-key and Google OAuth modes, three additional LLM adapters, Google Drive helpers, and Apify scrapers.
+- The source implements Gemini API-key/OAuth modes, three additional LLM adapters, manual Google Drive snapshots/confirmed transactional restore, and Apify scrapers. Automatic synchronization is absent.
 - The dated device audit live-verified Google OAuth plus one public YouTube extraction with Gemini 3.1 Flash-Lite, including Room persistence and restart readback.
 - Gemini 3.8 Flash had observed HTTP 503 and timeout failures in the same audit; this is an external observation, not a proven stack defect or OAuth-scope diagnosis.
 

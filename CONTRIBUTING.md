@@ -61,6 +61,21 @@ adb -s DEVICE_SERIAL shell am instrument -w -r \
 
 `-PqaTests=true` selects audit instrumentation explicitly; normal debug tests and CI keep their existing commands. If the device refuses adb installation, use the normal package installer instead of weakening OS security. The backup migration fixture uses exported Room version-3 schema assets and isolated QA databases, not the user's library. Exported schemas are part of the review for Room version changes.
 
+After intentional mutation tests, force regeneration of every affected Room/KSP variant with `--rerun-tasks`, inspect generated conflict SQL, reinstall the verified APK and rerun native tests. Source restoration alone can leave an unsafe generated audit DAO cached. Do not edit generated sources.
+
+## Explicit Live Drive Acceptance
+
+`DriveBackupLiveProbeTest` is skipped by default, including CI. It requires the main application ID, an existing recipe library and already connected Drive authorization. It creates one actual cloud snapshot (retained), lists/downloads it and restores it twice without replacing or deleting local recipes. Full serialized recipe content and local IDs must remain unchanged. It does not launch personal consent or inspect credentials.
+
+```bash
+adb -s DEVICE_SERIAL shell am instrument -w -r \
+  -e driveLiveProbe true -e expectedRecipes EXPECTED_COUNT \
+  -e class com.recipegrabber.DriveBackupLiveProbeTest \
+  com.recipegrabber.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Run only with explicit authorization for a real cloud backup. Do not enable in CI or the isolated QA variant. Keep keys, account identifiers, raw recipe content and cloud IDs out of published evidence; report counts, status and content-equality assertions instead.
+
 ## Issues And Pull Requests
 
 Include expected/actual behavior, reproduction steps, Android version, app commit and a redacted error. Never attach keys, private video URLs, account emails or unreviewed full logcat dumps. For OAuth errors, check package/signing registration rather than posting secrets.

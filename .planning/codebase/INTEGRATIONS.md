@@ -8,6 +8,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused security/backup update:** `575b965dbf91bbd32d04762dab40a281127363d4`; live acceptance status in `../audits/2026-10-13-drive-integration.md`. The full-map baseline above is retained, not relabeled as a new complete audit.
+
 ## APIs & External Services
 
 **Google Gemini / Generative Language:**
@@ -34,12 +36,12 @@ analysis_date: 2026-10-13
 
 **Databases:**
 - Room SQLite database `recipe_grabber_db` is a singleton from `app/src/main/java/com/recipegrabber/di/DatabaseModule.kt`.
-- `RecipeDatabase` version 3 contains `Recipe`, `Ingredient`, and `Step` entities with DAOs under `app/src/main/java/com/recipegrabber/data/local`.
+- `RecipeDatabase` version 4 contains `Recipe`, `Ingredient`, and `Step`; recipes have a unique stable backup UUID. Schema 3 and 4 are exported. `MIGRATION_3_4` preserves existing IDs/content/relations.
 - Migrations are registered from `Migrations.kt`; schema export is enabled.
-- Live status: the audit read back the Flash-Lite recipe after app restart. Migration coverage remains a documented test gap.
+- Native schema-3 fixture migration is tested; the real Mi 11 main library upgraded with all three recipes/twelve ingredients/twenty steps and previous fields unchanged. Historical 1/2 upgrade paths remain a test gap.
 
 **File Storage:**
-- `GoogleDriveService.kt` uploads JSON to the Drive `appDataFolder`, lists JSON files, and deletes by ID.
+- Active manual snapshots use `DriveBackupTransport.kt` (fixed-origin cancellable OkHttp) and `DriveBackupCoordinator.kt`: immutable appDataFolder upload, bounded supported-format listing/download, complete codec validation and transactional local-win UUID merge. Legacy Java-client methods in `GoogleDriveService.kt` have no production backup callers.
 - Room/DataStore persist application data. Direct video transfers use temporary app-cache files (100 MiB limit) removed in finally. Uploaded Google files get a best-effort delete limited to the newly created file; if deletion cannot complete, Google's file expiration applies. No permanent video library is added.
 
 **Caching:**
@@ -52,9 +54,9 @@ analysis_date: 2026-10-13
 - A historical retriever-only Files upload returned `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Discovery metadata lists `devstorage.read_only` for file operations; the separately optional Settings authorization now requests it after disclosure and personal Google consent. No Cloud roles or billing settings were changed.
 - `consumeGenerativeLanguageAuthorizationResult` requires all exact requested scopes and a nonblank access token.
 - Follow-up at `aa4a8eb`: the user approved the additional Files permission. The statements above describe the historical base flow; Settings now offers a separate optional disclosure/authorization requesting retriever plus `devstorage.read_only`. All requested scopes and a nonblank token are checked. The combined token is fetched only for files above 8 MiB and used for upload/polling/cleanup/generation; YouTube and inline remain base-only. No token is persisted or billing/IAM/client configuration changed. After personal confirmation on the Mi 11, a 21.2MB WebM reached ACTIVE and saved a recipe with four ingredients/eight steps that survived restart.
-- Drive uses Google Sign-In with email and `DriveScopes.DRIVE_APPDATA`, then creates a `GoogleAccountCredential`.
+- Drive Settings/onboarding use a separate `DriveBackupAuthorization.kt` Android Identity flow requesting only `DriveScopes.DRIVE_APPDATA`; actual grant/token are checked and tokens are not persisted. Known accounts are pinned, unexpected changes fail closed, and Drive account/connection preferences do not overwrite Gemini state.
 - These are separate permission flows. Tokens and account identifiers are intentionally omitted from documentation.
-- Live status: the audit records `RESULT_OK`, the Generative Language scope, and successful Flash-Lite video generation on the registered Android client. Drive backup/restore is not live-verified.
+- Gemini device evidence remains in its dated audits. Drive evidence is separately recorded in the Drive audit; account connection alone is not upload/recovery proof.
 
 **Provider API keys:**
 - Gemini, OpenAI, Claude, Kimi, and Apify credentials are read from `PreferencesRepository`; values are user-provided at runtime and must not be committed.
@@ -65,7 +67,7 @@ analysis_date: 2026-10-13
 - No hosted error-tracking service is detected.
 
 **Logs:**
-- `AppLogger` is used by providers, OAuth, Apify, and repositories. Gemini logs bounded HTTP status failures, but other adapters still log response snippets, source URLs and account identifiers. Do not describe the entire logger as sanitized; review exports before sharing.
+- `AppLogger` sanitizes before logcat/queue/files, removes throwable messages/stacks, discards old unknown diagnostic contents at privacy upgrade and bounds retention/export. Call sites omit recipe/source/account/raw-response contents. Previously shared exports and historical OS logs are outside retroactive cleanup.
 - `GeminiProvider.kt` maps HTTP 401/403/429/5xx responses to distinct user-facing failures.
 
 ## CI/CD & Deployment
@@ -83,7 +85,7 @@ analysis_date: 2026-10-13
 - None are required for browsing and local storage. Provider keys and Google authorization are configured interactively.
 
 **Secrets location:**
-- Runtime secrets reside in Android preferences supplied by the user. No secret values, account details, or private logs belong here.
+- Runtime API keys are Keystore-backed AES-GCM encrypted DataStore values after atomic migration; failure retains legacy input for recovery without plaintext read fallback. Platform backup permits recipe DB/WAL only, not keys/settings/logs. No secrets/account details/private logs belong here.
 
 ## Webhooks & Callbacks
 
@@ -95,7 +97,7 @@ analysis_date: 2026-10-13
 
 ## Evidence-Backed Issues Requiring Parent Action
 
-- Drive upload/list/delete helpers exist, but automatic backup, synchronization worker, and restore workflow are not implemented (`README.md`, `GoogleDriveService.kt`).
+- Manual Drive backup/confirmed restore exists. Automatic synchronization/scheduling/deletion propagation is not implemented, and second-device/minified-release recovery remains unverified.
 - TikTok/Instagram scraping and returned CDN URLs lack live end-to-end acceptance evidence; keep this capability experimental.
 - Positive device evidence is specific to public YouTube and two public WebM files plus Google OAuth plus Flash-Lite. Do not generalize it to 3.8, other providers, social platforms, or arbitrary direct files.
 - The prior 3.8 failures remain unresolved service behavior. The audit does not identify quota, billing, transport, or OAuth scope as the cause.

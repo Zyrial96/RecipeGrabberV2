@@ -9,6 +9,8 @@ analysis_date: 2026-10-13
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
+**Focused security/backup update:** `575b965dbf91bbd32d04762dab40a281127363d4`. Settings/onboarding -> `DriveBackupAuthorization`; Settings -> `DriveBackupCoordinator` -> Room snapshot / `RecipeBackupCodec` / `DriveBackupTransport` -> appDataFolder. Restore validates first, then one Room transaction adds missing UUIDs with local-win conflicts. Room is version 4; migration assigns UUIDs without changing prior recipe data. `data/security/` encrypts credentials with Keystore and fail-closed atomic migration. `data/logging/` sanitizes/bounds diagnostics. See the dated audits for acceptance boundaries.
+
 ## System Overview
 
 ```text
@@ -163,7 +165,7 @@ The project is a single Android application module (`app/`) using Compose UI, Hi
 
 **Authentication:** User provider credentials and Google authorization state are read/written through `PreferencesRepository`; no credential values belong in architecture documentation.
 
-**Preferences:** The settings store is the authority for onboarding completion, selected provider/model, provider auth mode, Drive sync, theme, clipboard monitoring, and auto-extraction toggles.
+**Preferences:** The settings store owns onboarding/provider/theme/clipboard choices, encrypted credentials and distinct Gemini/Drive authorization metadata. Drive connection is not automatic sync or completed-backup evidence; tokens are never persisted.
 
 ---
 

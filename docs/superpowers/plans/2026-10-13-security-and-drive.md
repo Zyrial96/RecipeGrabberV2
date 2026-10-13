@@ -49,9 +49,9 @@
 
 ## D-03: Real Acceptance And Documentation
 
-- [ ] On Mi 11: migrate credentials without exposing them, check sanitized logs and preserved recipe library; actual Drive upload/list/download followed by non-destructive idempotent restore and app restart. Personal Google warning requires user handoff if shown.
-- [ ] Complete hosted API 31/35 CI, update README/CONTRIBUTING/GSD map/audits with verified capabilities and limits, and push final documentation-only evidence.
-- [ ] Mark the goal complete only after the required implementation and verification gates pass; distinguish personal-consent dependencies from code defects.
+- [x] On Mi 11: credential/privacy native checks pass without real key inspection; Room 3-to-4 retains all prior content; actual Drive upload/list/download and two idempotent restores preserve all three recipes. UI backup/confirmed restore and disconnect/Gemini independence are checked; restart retains recipe cards. No additional personal warning was shown.
+- [x] Hosted runtime CI 38441275898 is green for build plus API 31/35. README/CONTRIBUTING/seven GSD map documents/audits updated with verified capabilities and limits; publication in final documentation-only evidence commit.
+- [x] All required implementation/verification gates passed; goal completion follows successful final documentation publication. System-backup, second-device and minified-release limits remain explicit, not falsely claimed as verified.
 
 ## Findings
 

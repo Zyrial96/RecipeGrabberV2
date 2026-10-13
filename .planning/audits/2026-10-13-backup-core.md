@@ -16,6 +16,8 @@
 - Deliberately reverting insert conflict handling to REPLACE made the targeted identity-collision native test fail (`/tmp/recipegrabber-backup-core-red-test.txt`). Restoring ABORT returned all native tests to green.
 - Final audit APK SHA-256 `ed0ac8a50a466c06c32652e92fdc0918d6ee7b6dbb43d499ec6da87a79267b8c`; audit test APK `64f75eef25bcc8d732f8128ed1a1c8e15dc6c489a194d73c6150c26c8ec98592`; installed hashes matched builds. Installation server/reverse were stopped.
 
-## Remaining Required Work
+## Historical D-01 Checkpoint
 
 The actual installed main app remains the S-02/S-03 checkpoint with its version-3 library. Main-app migration/restart, real Drive upload/list/download/restore, usable progress/error/confirmation UI and final hosted CI are still required under the active goal. Backup transport and UI are not claimed from codec/QA success. Prior 1-to-2/2-to-3 migration coverage is not established by the new 3-to-4 fixture.
+
+**D-02/D-03 follow-up:** Those required integration gates are now verified in the [Drive audit](2026-10-13-drive-integration.md): main schema-4 content preservation, real cloud round trip, confirmed UI actions, independent Drive disconnect and hosted API 31/35 CI. The main app is no longer at the historical schema-3 checkpoint above. A later audit rebuild exposed stale generated REPLACE code from the mutation test; forced KSP regeneration restored ABORT in all variants and the installed final QA/main suites passed. Source restoration alone was not sufficient cache invalidation evidence.
