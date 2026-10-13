@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.recipegrabber.R
 import com.recipegrabber.data.logging.AppLogger
 import com.recipegrabber.data.repository.PreferencesRepository
+import com.recipegrabber.domain.VideoLinkParser
 import com.recipegrabber.presentation.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -92,31 +93,17 @@ class ClipboardMonitorService : Service() {
             val clip = clipboardManager.primaryClip
             if (clip != null && clip.itemCount > 0) {
                 val text = clip.getItemAt(0).text?.toString()
-                if (!text.isNullOrBlank() && isValidVideoUrl(text)) {
-                    logger.i("Clipboard", "Video URL detected: $text")
+                val videoUrl = text?.let(VideoLinkParser::findVideoUrl)
+                if (videoUrl != null) {
+                    logger.i("Clipboard", "Video URL detected")
                     if (preferencesRepository.autoExtractRecipes.first()) {
-                        broadcastRecipeUrl(text)
+                        broadcastRecipeUrl(videoUrl)
                     } else {
-                        showUrlDetectedNotification(text)
+                        showUrlDetectedNotification(videoUrl)
                     }
                 }
             }
         }
-    }
-
-    private fun isValidVideoUrl(url: String): Boolean {
-        val videoPatterns = listOf(
-            "youtube.com/watch",
-            "youtu.be/",
-            "tiktok.com/",
-            "instagram.com/",
-            "facebook.com/",
-            "twitter.com/",
-            "x.com/",
-            "vimeo.com/",
-            "dailymotion.com/"
-        )
-        return videoPatterns.any { url.contains(it, ignoreCase = true) }
     }
 
     private fun broadcastRecipeUrl(url: String) {

@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.recipegrabber.data.repository.PreferencesRepository
+import com.recipegrabber.domain.VideoLinkParser
 import com.recipegrabber.presentation.ui.screens.LogViewerScreen
 import com.recipegrabber.presentation.ui.screens.RecipeDetailScreen
 import com.recipegrabber.presentation.ui.screens.RecipeExtractionBottomSheet
@@ -165,27 +166,8 @@ class MainActivity : ComponentActivity() {
     private fun handleShareIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-            sharedText?.let { text ->
-                if (isValidVideoUrl(text)) {
-                    pendingVideoUrl = text
-                }
-            }
+            sharedText?.let { pendingVideoUrl = VideoLinkParser.findVideoUrl(it) }
         }
-    }
-
-    private fun isValidVideoUrl(url: String): Boolean {
-        val videoPatterns = listOf(
-            "youtube.com/watch",
-            "youtu.be/",
-            "tiktok.com/",
-            "instagram.com/",
-            "facebook.com/",
-            "twitter.com/",
-            "x.com/",
-            "vimeo.com/",
-            "dailymotion.com/"
-        )
-        return videoPatterns.any { url.contains(it, ignoreCase = true) }
     }
 
     override fun onStart() {
