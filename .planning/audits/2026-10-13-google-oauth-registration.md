@@ -26,9 +26,16 @@
 - A single repeat of the same video request timed out after approximately 180 seconds. No recipe was saved. The cached Android authorization reached the HTTP request without another consent prompt or token-acquisition error; successful inference remains unproven.
 - A separate non-generating models-endpoint check from the Mac, using the existing CLI identity and explicit project header, promptly returned HTTP 403 / `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. That CLI credential is not the Android AuthorizationClient token. This proves a Mac response path, not a successful Android API call or an Android scope diagnosis.
 
+## Device Response-Path Diagnosis
+
+- Added opt-in `GeminiNetworkProbeTest`, with all external requests disabled unless explicitly selected through instrumentation arguments. It does not generate content or change account permissions.
+- On the Mi 11, unauthenticated metadata requests returned expected HTTP 403 over negotiated HTTP/1.1 in 134ms and negotiated HTTP/2 in 138ms. This contradicts a general endpoint-connectivity or HTTP/2 transport diagnosis for the observed video timeout.
+- With the actual Android AuthorizationClient token and existing consent, the Gemini 3.8 Flash metadata endpoint returned HTTP 200 both without a quota header and with the explicitly selected Cloud project. The earlier CLI-token scope failure does not apply to this Android token.
+- Both opt-in diagnostic paths passed when explicitly activated. The ordinary device suite then passed all eight core tests, with the two diagnostics skipped (runner reports ten discovered tests). Unit/lint/debug/release checks also succeeded. No further potentially billed video inference was attempted in this diagnostic step.
+
 ## Remaining Acceptance
 
 - Diagnose the device/API response-header timeout and verify successful extraction of an actual supported video. Avoid repeated potentially billed generation attempts until the response-path problem is understood.
-- Google login and token acceptance are now demonstrated. Model access, inference and recipe persistence for a real video are separate gates and have not passed.
+- Google login, token acceptance and authenticated model-metadata access are now demonstrated. Inference and recipe persistence for a real video are separate gates and have not passed. Next isolate a minimal generation request from the YouTube file-input path; do not treat a metadata GET as successful generation.
 
 The earlier 12 October device audit is a historical checkpoint. Its missing-client/browser-access blocker is resolved; the remaining failure is the live video API response path described above.

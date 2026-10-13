@@ -1,0 +1,104 @@
+package com.recipegrabber
+
+import android.util.Log
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.gson.JsonParser
+import com.recipegrabber.data.remote.GoogleAiAuthorizationRequestFactory
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Test
+import java.util.concurrent.TimeUnit
+
+class GeminiNetworkProbeTest {
+    @Test
+    fun authorizedModelMetadataResponds() = runBlocking {
+        val arguments = InstrumentationRegistry.getArguments()
+        assumeTrue(arguments.getString("oauthProbe") == "true")
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val authorization = Identity.getAuthorizationClient(context)
+            .authorize(GoogleAiAuthorizationRequestFactory.buildGenerativeLanguageRequest()).await()
+        assertTrue("Existing consent required; this probe does not launch consent", !authorization.hasResolution())
+        val token = authorization.accessToken
+        assertTrue("No access token returned", !token.isNullOrBlank())
+        val project = arguments.getString("googleProject")
+        require(project == null || project.matches(Regex("[a-z][a-z0-9-]{4,61}[a-z0-9]")))
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(20, TimeUnit.SECONDS)
+            .build()
+        val failures = mutableListOf<String>()
+        try {
+            for (quotaProject in if (project == null) listOf(null) else listOf(null, project)) {
+                val label = if (quotaProject == null) "no quota header" else "explicit quota project"
+                val builder = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash")
+                    .header("Authorization", "Bearer $token")
+                if (quotaProject != null) builder.header("x-goog-user-project", quotaProject)
+                try {
+                    client.newCall(builder.build()).execute().use { response ->
+                        val body = JsonParser.parseString(response.body!!.string()).asJsonObject
+                        val error = body.getAsJsonObject("error")
+                        val status = error?.get("status")?.asString.orEmpty()
+                        val reasons = error?.getAsJsonArray("details")?.mapNotNull {
+                            it.asJsonObject.get("reason")?.asString
+                        }.orEmpty().joinToString(",")
+                        Log.i("RG-NetworkProbe", "$label: HTTP ${response.code}, status=$status, reasons=$reasons")
+                        if (!response.isSuccessful) failures += "$label: HTTP ${response.code}, $status, $reasons"
+                    }
+                } catch (error: Exception) {
+                    val detail = "$label: ${error.javaClass.simpleName}"
+                    Log.i("RG-NetworkProbe", detail)
+                    failures += detail
+                }
+            }
+        } finally {
+            client.connectionPool.evictAll()
+            client.dispatcher.executorService.shutdown()
+        }
+        assertTrue(failures.joinToString("; "), failures.isEmpty())
+    }
+
+    @Test
+    fun unauthenticatedEndpointRespondsOverBothProtocols() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("networkProbe") == "true")
+        val failures = mutableListOf<String>()
+        for (protocols in listOf(listOf(Protocol.HTTP_1_1), listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))) {
+            val client = OkHttpClient.Builder()
+                .protocols(protocols)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .callTimeout(15, TimeUnit.SECONDS)
+                .build()
+            val label = protocols.first().toString()
+            val started = System.nanoTime()
+            try {
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models")
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+                    Log.i("RG-NetworkProbe", "$label: HTTP ${response.code}, negotiated ${response.protocol}, ${elapsed}ms")
+                    if (response.code !in listOf(401, 403)) failures += "$label: unexpected HTTP ${response.code}"
+                }
+            } catch (error: Exception) {
+                val elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+                val detail = "$label: ${error.javaClass.simpleName}, ${elapsed}ms"
+                Log.i("RG-NetworkProbe", detail)
+                failures += detail
+            } finally {
+                client.connectionPool.evictAll()
+                client.dispatcher.executorService.shutdown()
+            }
+        }
+        assertTrue(failures.joinToString("; "), failures.isEmpty())
+    }
+}

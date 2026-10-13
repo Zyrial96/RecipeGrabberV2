@@ -27,6 +27,17 @@ Add regressions for changed behavior, including malformed responses, missing cre
 
 For device tests, record model, Android API level, build/commit and observed flow. Distinguish an opened OAuth dialog, granted permissions, a usable token and successful extraction. Do not claim the latter from the former.
 
+`GeminiNetworkProbeTest` contains opt-in connectivity diagnostics. Without explicit instrumentation arguments both diagnostics are skipped, including in CI. They do not generate content or log tokens, accounts or response bodies. The OAuth check requires existing Gemini consent and never opens a consent dialog. After installing the debug app and test APK, run:
+
+```bash
+adb -s DEVICE_SERIAL shell am instrument -w -r \
+  -e networkProbe true -e oauthProbe true -e googleProject YOUR_PROJECT_ID \
+  -e class com.recipegrabber.GeminiNetworkProbeTest \
+  com.recipegrabber.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Replace the device and project placeholders. The unauthenticated GET expects HTTP 401/403 over HTTP/1.1 and HTTP/2. The OAuth metadata GET compares requests with and without a quota-project header. Passing these checks proves endpoint/model-metadata access, not video inference.
+
 Xiaomi may restrict USB installation and input separately. Normal APK download/package installation can support development without root or globally disabling Play Protect. Report actual device restrictions rather than substituting a successful host build.
 
 ## Issues And Pull Requests
