@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 data class ExtractionUiState(
@@ -39,10 +40,12 @@ class RecipeExtractionViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ExtractionUiState())
     val uiState: StateFlow<ExtractionUiState> = _uiState.asStateFlow()
+    private var extractionJob: Job? = null
 
     fun startExtraction(videoUrl: String) {
-        logger.i("ExtractionVM", "Starting extraction for: $videoUrl")
-        viewModelScope.launch {
+        extractionJob?.cancel()
+        logger.i("ExtractionVM", "Starting video extraction")
+        extractionJob = viewModelScope.launch {
             _uiState.value = ExtractionUiState(
                 isLoading = true,
                 videoUrl = videoUrl,
@@ -68,9 +71,11 @@ class RecipeExtractionViewModel @Inject constructor(
                 }
             }
 
-            val result = extractRecipeUseCase(videoUrl)
-
-            progressJob.cancel()
+            val result = try {
+                extractRecipeUseCase(videoUrl)
+            } finally {
+                progressJob.cancel()
+            }
 
             when (result) {
                 is ExtractRecipeUseCase.ExtractionResult.Success -> {
@@ -119,7 +124,12 @@ class RecipeExtractionViewModel @Inject constructor(
                             _uiState.value = ExtractionUiState(
                                 isLoading = false,
                                 videoUrl = videoUrl,
-                                error = result.message,
+                                error = when (retryResult) {
+                                    is ExtractRecipeUseCase.ExtractionResult.Error -> retryResult.message
+                                    is ExtractRecipeUseCase.ExtractionResult.ScrapingFailed -> retryResult.message
+                                    is ExtractRecipeUseCase.ExtractionResult.NoApiKey -> "Bitte konfiguriere deinen ${retryResult.provider} API-Key in den Einstellungen"
+                                    else -> "Extraction failed"
+                                },
                                 step = ExtractionStep.ERROR
                             )
                         }
@@ -139,6 +149,8 @@ class RecipeExtractionViewModel @Inject constructor(
     }
 
     fun reset() {
+        extractionJob?.cancel()
+        extractionJob = null
         _uiState.value = ExtractionUiState()
     }
 
