@@ -271,7 +271,7 @@ fun RecipeCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row {
                     Text(
-                        text = "${recipe.ingredients.size} ingredients",
+                        text = "${recipeWithDetails.ingredients.size} ingredients",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )
