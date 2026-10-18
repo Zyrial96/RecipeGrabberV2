@@ -17,8 +17,8 @@
 
 - [x] Add secure release helper, signing configuration, isolated releaseCheck variant and ten regression tests; required-signing-without-config and wrong-variant verification both fail closed. Credential files are ignored and owner-only.
 - [x] Generate/reuse the release key, build APK/AAB and releaseCheck; independently verify certificates, exact package and non-debuggable manifest plus AAB JAR signature. 150 JVM tests/lint/build gates and ten tooling tests pass.
-- [ ] Configure the necessary Android OAuth clients for the new certificate; install only the isolated variant on S25; restore existing Drive snapshot into empty storage, repeat without duplicates, restart and inspect recipes.
-- [ ] Fresh review, focused commits/pushes, current CI and explicit evidence/limits; preserve all preexisting apps and data.
+- [x] User approved both new Android OAuth clients; created and verified without changing scopes/IAM/billing/existing clients. S25 releaseCheck began empty, restored three actual Mi 11 recipes, repeated with zero inserts, retained all after restart, opened details and scaled portions. Installed hash/non-debuggable flags verified; original app path unchanged.
+- [x] Fresh review completed, verification concerns addressed with regressions; runtime/tooling commit `f82c2e4` pushed and hosted build plus API 31/35 jobs all green in run 39102779893. Explicit package/signing/recovery limits and evidence documented; final publication is documentation-only. Original apps/data remain untouched.
 
 ## Evidence And Rulings
 

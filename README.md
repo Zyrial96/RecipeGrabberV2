@@ -27,7 +27,7 @@ sdkmanager "platforms;android-35" "build-tools;34.0.0"
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
-Open the project root in Android Studio, or install app/build/outputs/apk/debug/app-debug.apk. The release task builds an unsigned, minified APK; it does not configure signing or publish a release.
+Open the project root in Android Studio, or install app/build/outputs/apk/debug/app-debug.apk. Ordinary CI release builds remain unsigned/minified. The local [signed release workflow](docs/RELEASING.md) creates/reuses a protected private identity, produces signed APK/AAB artifacts and independently verifies their signers, expected packages and non-debuggable flags. It does not publish to an app store or GitHub Releases; keys/passwords never belong in Git.
 
 The [Android Checks workflow](.github/workflows/android.yml) runs unit tests, lint and both builds on pushes and pull requests, followed by Room and Compose instrumentation tests on API 31 and 35 emulators. Its artifacts contain test/lint reports, not live authorization results. Run the instrumentation suite locally with `./gradlew connectedDebugAndroidTest` on a device or emulator.
 
@@ -61,7 +61,9 @@ Only [Drive's appDataFolder permission](https://developers.google.com/workspace/
 
 Room version 4 assigns stable recipe UUIDs without rewriting existing content. Native tests cover schema-3 migration, local-conflict preservation and rollback; the Mi 11 main database migration retained all three recipes, twelve ingredients and twenty steps with unchanged previous fields. See the [backup-core audit](.planning/audits/2026-10-13-backup-core.md) and [Drive acceptance audit](.planning/audits/2026-10-13-drive-integration.md).
 
-On the Mi 11, a real Drive snapshot was uploaded, listed, downloaded and restored twice with zero new recipes and all existing content/IDs preserved. This proves that particular authorized same-device round trip; a clean-install/second-device or minified-release restore has not been live-verified. Google did not return account email metadata for this scope-only request, so the UI shows a generic connected state rather than claiming an account identity.
+On 13 October, a real Drive snapshot on the Mi 11 was uploaded, listed, downloaded and restored twice with zero new recipes and all existing content/IDs preserved. That checkpoint proved the authorized same-device round trip, not second-device/minified recovery. Google did not return account email metadata for this scope-only request, so the UI shows a generic connected state rather than claiming an account identity.
+
+**18 October follow-up:** A signed, minified, non-debuggable `com.recipegrabber.releasecheck` installation on a Samsung S25 Ultra (Android 16) started empty, downloaded an existing Mi 11 snapshot, restored all three recipes and inserted none on repeat. All three persisted after restart, opened independent detail views and supported portion scaling. The original debug installation was left untouched. This validates the isolated release-test package, **not** installation/upgrade of the exact production-package APK. Both production APK/AAB and isolated APK were built and independently signature-verified. See the [second-device audit](.planning/audits/2026-10-18-signed-release-recovery.md).
 
 ## Code Map
 
@@ -86,7 +88,7 @@ ExtractRecipeUseCase owns validation and saving. Both list entry and shared-vide
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, historical Room 1/2 migration coverage, minified-release device acceptance and broader lifecycle/device testing. Drive synchronization and scheduling are not implemented.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, historical Room 1/2 migration coverage, exact production-package installation/update acceptance and broader lifecycle/device testing. Drive synchronization and scheduling are not implemented.
 
 ## License
 

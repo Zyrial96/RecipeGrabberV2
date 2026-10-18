@@ -9,7 +9,7 @@ Before submitting changes:
 git diff --check
 ```
 
-Reports are in `app/build/reports/`. Release builds are unsigned. Run the Room and Compose instrumentation suite with `./gradlew connectedDebugAndroidTest` on an authorized device/emulator. It verifies independent detail IDs, rollback on failed writes, favorites, cascading deletion, localized portion controls and delete confirmation/navigation using isolated in-memory databases, not the user's recipe database. CI runs this suite on API 31 and 35 emulators. Passing it is not proof of external API authorization or actual video extraction.
+Reports are in `app/build/reports/`. Release builds are unsigned without the private environment; see [RELEASING.md](docs/RELEASING.md) for verified local signing and the isolated minified recovery variant. Run the Room and Compose instrumentation suite with `./gradlew connectedDebugAndroidTest` on an authorized device/emulator. It verifies independent detail IDs, rollback on failed writes, favorites, cascading deletion, localized portion controls and delete confirmation/navigation using isolated in-memory databases, not the user's recipe database. CI runs this suite on API 31 and 35 emulators. Passing it is not proof of external API authorization or actual video extraction.
 
 ## Architecture And Scope
 

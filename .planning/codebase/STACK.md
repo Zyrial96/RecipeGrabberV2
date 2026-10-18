@@ -5,6 +5,8 @@ analysis_date: 2026-10-13
 
 # Technology Stack
 
+**18 October release update (`f82c2e4`):** `scripts/release.py` provides optional environment-based PKCS12 signing and independent APK/AAB verification. `releaseCheck` inherits the minified release configuration with an isolated application ID; its signed non-debuggable build recovered real Mi 11 Drive snapshots on an S25 Ultra / API 36. Production APK/AAB are signed locally, but exact production-package device installation is not claimed. See `../audits/2026-10-18-signed-release-recovery.md`.
+
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
@@ -84,7 +86,7 @@ analysis_date: 2026-10-13
 - An authorized Android device/emulator is required for `connectedDebugAndroidTest`; external OAuth/video checks are opt-in.
 
 **Production:**
-- The deliverable is an Android APK; release builds are minified but unsigned according to `CONTRIBUTING.md`.
+- Deliverables are Android APK/AAB artifacts; release builds are minified and optionally signed from private local environment configuration. Public CI remains unsigned and never receives release credentials. See `docs/RELEASING.md`.
 - Network access is required for extraction and integrations; local recipe browsing and Room persistence work offline.
 
 ## Current Capability Boundary

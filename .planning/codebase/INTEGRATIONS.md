@@ -5,6 +5,8 @@ analysis_date: 2026-10-13
 
 # External Integrations
 
+**18 October release update (`f82c2e4`):** The user approved two additional Android OAuth clients for the new release certificate (production and isolated releaseCheck packages), without replacing clients or changing scopes/IAM/billing. The S25 / API 36 releaseCheck app authorized Drive, listed the actual Mi 11 snapshots and restored three recipes into empty storage; repeat restore inserted none and restart retained them. This proves that isolated minified package, not installation of the exact production APK. See the second-device audit.
+
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
@@ -97,7 +99,7 @@ analysis_date: 2026-10-13
 
 ## Evidence-Backed Issues Requiring Parent Action
 
-- Manual Drive backup/confirmed restore exists. Automatic synchronization/scheduling/deletion propagation is not implemented, and second-device/minified-release recovery remains unverified.
+- Manual Drive backup/confirmed restore exists. Automatic synchronization/scheduling/deletion propagation is absent. Second-device recovery is verified on the isolated signed/minified releaseCheck package; exact production-package installation/update acceptance remains unverified.
 - TikTok/Instagram scraping and returned CDN URLs lack live end-to-end acceptance evidence; keep this capability experimental.
 - Positive device evidence is specific to public YouTube and two public WebM files plus Google OAuth plus Flash-Lite. Do not generalize it to 3.8, other providers, social platforms, or arbitrary direct files.
 - The prior 3.8 failures remain unresolved service behavior. The audit does not identify quota, billing, transport, or OAuth scope as the cause.
