@@ -31,7 +31,9 @@ jobs:
       - name: Install Android SDK components
         run: sdkmanager "platforms;android-35" "build-tools;34.0.0"
       - name: Unit tests, lint and APK builds
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease --no-daemon --console=plain
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease assembleReleaseCheck --no-daemon --console=plain
+      - name: Release tooling tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

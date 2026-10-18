@@ -18,6 +18,11 @@ local.properties
 # Keystore
 *.jks
 *.keystore
+*.p12
+*.pfx
+
+# Python release tooling
+__pycache__/
 
 # Google Services
 google-services.json

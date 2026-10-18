@@ -6,6 +6,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val releaseSigningNames = listOf("RECIPEGRABBER_KEYSTORE_FILE", "RECIPEGRABBER_STORE_PASSWORD", "RECIPEGRABBER_KEY_ALIAS", "RECIPEGRABBER_KEY_PASSWORD")
+val releaseSigningValues = releaseSigningNames.map { providers.environmentVariable(it).orNull }
+val hasReleaseSigning = releaseSigningValues.all { !it.isNullOrBlank() }
+if ((releaseSigningValues.any { it != null } || providers.gradleProperty("requireReleaseSigning").orNull == "true") && !hasReleaseSigning) {
+    throw GradleException("Complete private release signing configuration is required")
+}
+
 android {
     namespace = "com.recipegrabber"
     compileSdk = 35
@@ -28,6 +35,16 @@ android {
         }
     }
 
+    if (hasReleaseSigning) {
+        signingConfigs.create("privateRelease") {
+            storeFile = file(releaseSigningValues[0]!!)
+            storePassword = releaseSigningValues[1]
+            keyAlias = releaseSigningValues[2]
+            keyPassword = releaseSigningValues[3]
+            storeType = "PKCS12"
+        }
+    }
+
     buildTypes {
         create("audit") {
             initWith(getByName("debug"))
@@ -36,11 +53,18 @@ android {
             matchingFallbacks += listOf("debug")
         }
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("privateRelease")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        create("releaseCheck") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".releasecheck"
+            versionNameSuffix = "-releasecheck"
+            matchingFallbacks += listOf("release")
         }
     }
 
