@@ -1,5 +1,10 @@
 # Production Installation Preflight
 
+**Follow-up:** The user unlocked the phone and the remaining steps completed.
+See `2026-10-18-production-release-recovery.md` for the actual production APK
+installation, fresh backup and successful restore/repeat/restart acceptance.
+The gate below records the earlier preflight checkpoint, not the final state.
+
 This follow-up records the request to replace the original debug-signed app on
 the explicitly named Samsung S25 Ultra with the actual signed production APK.
 It does not supersede the isolated-variant acceptance results in

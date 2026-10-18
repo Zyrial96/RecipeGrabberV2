@@ -65,6 +65,8 @@ On 13 October, a real Drive snapshot on the Mi 11 was uploaded, listed, download
 
 **18 October follow-up:** A signed, minified, non-debuggable `com.recipegrabber.releasecheck` installation on a Samsung S25 Ultra (Android 16) started empty, downloaded an existing Mi 11 snapshot, restored all three recipes and inserted none on repeat. All three persisted after restart, opened independent detail views and supported portion scaling. The original debug installation was left untouched. This validates the isolated release-test package, **not** installation/upgrade of the exact production-package APK. Both production APK/AAB and isolated APK were built and independently signature-verified. See the [second-device audit](.planning/audits/2026-10-18-signed-release-recovery.md).
 
+**Actual production acceptance, 18 October:** After private database/APK backups and a fresh three-recipe Drive snapshot, the user-authorized replacement of the S25's original debug app with the exact signed `com.recipegrabber` release succeeded. Google authorization, three-recipe recovery, duplicate-free repeat, restart persistence, all ingredient/step details and portion scaling passed. The installed APK hash matched the verified production artifact; the audit/test apps remain intact. This was a fresh installation after backup, not an in-place cross-certificate update. See the [production recovery audit](.planning/audits/2026-10-18-production-release-recovery.md).
+
 ## Code Map
 
 ```text
@@ -88,7 +90,7 @@ ExtractRecipeUseCase owns validation and saving. Both list entry and shared-vide
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, historical Room 1/2 migration coverage, exact production-package installation/update acceptance and broader lifecycle/device testing. Drive synchronization and scheduling are not implemented.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Remaining gaps include real media ingestion for other providers, reliable social-video handling, historical Room 1/2 migration coverage, same-certificate release update acceptance and broader lifecycle/device testing. Drive synchronization and scheduling are not implemented.
 
 ## License
 

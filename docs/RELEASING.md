@@ -44,3 +44,15 @@ Android cannot update an existing debug-signed app using an unrelated release ke
 Record the device/API, exact APK hash, package, signer, initial empty state, actual Drive listing/download, first nonempty restore, second idempotent restore, recipe detail readback and restart. A releaseCheck result is evidence for the isolated minified variant; it is not evidence that the exact production-package APK was installed or can upgrade a debug installation. Do not infer account identity or successful recovery merely from an OAuth picker/connected label. Personal warnings and account login remain user-controlled.
 
 See `.planning/audits/2026-10-18-signed-release-recovery.md` for the observed acceptance checkpoint and limits.
+
+When the user explicitly authorizes replacing a debug installation on a named
+device, first preserve its installed APK and a consistent database/WAL/SHM
+snapshot privately. Verify file hashes and SQLite integrity on separate copies,
+and create/verify a current Drive snapshot of valid recipes before uninstalling
+only the authorized package/profile. An unrelated debug certificate cannot be
+upgraded in place. Never treat an old cloud snapshot as proof that all current
+local records are covered. Malformed legacy records must remain preserved even
+when they cannot pass the strict recipe-backup format.
+
+The subsequent actual production-package installation and Drive recovery on the
+S25 passed; see `.planning/audits/2026-10-18-production-release-recovery.md`.

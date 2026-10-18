@@ -7,6 +7,13 @@ analysis_date: 2026-10-13
 
 **18 October release update (`f82c2e4`):** 150 JVM tests plus ten Python release-tooling tests pass locally with lint and signed/minified APK/AAB builds. Tooling rejects missing/private-config violations, signer/package mismatches, debuggable APKs and unsigned bundles. Actual S25 / API 36 recovery in releaseCheck began empty, inserted three Mi 11 recipes, inserted none on repeat and retained all three after restart/detail/portion checks. Installed artifact hash and non-debuggable package flags matched. Production-package APK installation is not inferred. Current hosted evidence belongs in `../audits/2026-10-18-signed-release-recovery.md`.
 
+**Subsequent production acceptance:** After verified private backups and explicit
+replacement authorization, the exact signed `com.recipegrabber` APK was installed
+on the S25. A fresh three-recipe Drive snapshot restored into empty production
+storage, repeat inserted zero, and restart/details/portion checks passed. Installed
+APK hash matched and flags excluded DEBUGGABLE. See
+`../audits/2026-10-18-production-release-recovery.md`; no runtime changes occurred.
+
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 

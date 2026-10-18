@@ -1,5 +1,10 @@
 # Signed Release And Second-Device Recovery
 
+**Later production acceptance:** The subsequent explicitly authorized replacement
+and actual production-package recovery passed. See
+`2026-10-18-production-release-recovery.md`. The checkpoint and limits below
+describe the earlier isolated-variant test.
+
 ## Scope And Artifact Identity
 
 Runtime/tooling commit: `f82c2e4`. Local JDK 17 build runs unit tests, lint, signed minified production APK/AAB and isolated releaseCheck APK. No release was published to Play/GitHub Releases, and no signing credentials were uploaded.

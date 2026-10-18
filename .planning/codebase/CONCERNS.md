@@ -93,7 +93,7 @@ analysis_date: 2026-10-13
 
 **R8 acceptance is scoped, not universal:**
 - Files: `app/proguard-rules.pro`, `app/build.gradle.kts:27-34`, `app/src/main/java/com/recipegrabber/data/remote/GoogleDriveService.kt`, `app/src/main/java/com/recipegrabber/data/remote/apify/ApifyService.kt`
-- A signed/minified non-debuggable releaseCheck APK recovered real snapshots on S25 / API 36 with OAuth, JSON validation, Room writes, independent detail views and portion scaling. This covers that recovery path, not every provider/Retrofit flow or exact production-package installation.
+- Signed/minified non-debuggable releaseCheck and exact production APKs recovered real snapshots on S25 / API 36 with OAuth, JSON validation, Room writes, independent detail views and portion scaling. This covers that recovery path, not every provider/Retrofit flow or same-certificate update.
 - Safe modification: Inspect R8 diagnostics, add only required rules, and install a minified APK for critical flows.
 - Test coverage: `scripts/test_release.py` covers signer/package/non-debuggable failures; the real minified-device acceptance is recorded in the 18 October audit. Production-package update compatibility and broader provider release smoke tests remain unverified.
 
@@ -115,7 +115,7 @@ analysis_date: 2026-10-13
 ## Missing Critical Features
 
 **Automatic synchronization and cross-device acceptance:**
-- Manual backup/restore is implemented with UUID conflicts and transactions. No automatic scheduling/deletion propagation exists. Mi 11 plus isolated signed/minified S25 recovery are verified; exact production-package installation/update and Android system-backup recovery remain unverified.
+- Manual backup/restore is implemented with UUID conflicts and transactions. No automatic scheduling/deletion propagation exists. Mi 11 plus isolated and exact production signed/minified S25 recovery are verified. Same-certificate release updates and Android system-backup recovery remain unverified. Malformed legacy failed-extraction records require separate preservation; they cannot pass strict recipe-backup validation.
 
 **Native media ingestion for non-Gemini providers:**
 - Problem: OpenAI, Claude, and Kimi accept URL-shaped input but have no live video-file ingestion proof.
