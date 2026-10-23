@@ -1,6 +1,8 @@
 package com.recipegrabber.presentation.ui.screens.onboarding
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +53,7 @@ fun ApifyStep(
     var showKey by remember { mutableStateOf(false) }
 
     Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         storageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }

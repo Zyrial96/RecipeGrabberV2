@@ -8,6 +8,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -94,7 +99,11 @@ class MainActivity : ComponentActivity() {
                     } else {
                         NavHost(
                             navController = navController,
-                            startDestination = "recipe_list"
+                            startDestination = "recipe_list",
+                            enterTransition = { fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 12 } },
+                            exitTransition = { fadeOut(tween(140)) },
+                            popEnterTransition = { fadeIn(tween(180)) },
+                            popExitTransition = { fadeOut(tween(140)) + slideOutHorizontally(tween(180)) { it / 12 } }
                         ) {
                             composable("recipe_list") {
                                 RecipeListScreen(

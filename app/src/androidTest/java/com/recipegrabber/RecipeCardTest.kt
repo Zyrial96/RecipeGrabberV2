@@ -25,8 +25,8 @@ class RecipeCardTest {
             steps = listOf(Step(recipeId = 1, order = 1, instruction = "Kochen"))
         )
         render(details)
-        compose.onNodeWithText("2 ingredients").assertIsDisplayed()
-        compose.onNodeWithText("1 steps").assertIsDisplayed()
+        compose.onNodeWithText("2 Zutaten").assertIsDisplayed()
+        compose.onNodeWithText("1 Schritt").assertIsDisplayed()
     }
 
     @Test fun transientIngredientsDoNotOverrideAnEmptyPersistedRelation() {
@@ -34,7 +34,7 @@ class RecipeCardTest {
             ingredients = listOf(Ingredient(recipeId = 1, name = "Stale ingredient"))
         }
         render(RecipeWithDetails(recipe, ingredients = emptyList(), steps = emptyList()))
-        compose.onNodeWithText("0 ingredients").assertIsDisplayed()
+        compose.onNodeWithText("0 Zutaten").assertIsDisplayed()
     }
 
     private fun render(details: RecipeWithDetails) {

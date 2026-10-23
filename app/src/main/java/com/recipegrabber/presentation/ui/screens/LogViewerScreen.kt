@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.recipegrabber.presentation.viewmodel.LogViewerViewModel
+import com.recipegrabber.presentation.ui.components.ToolIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,17 +68,11 @@ fun LogViewerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 actions = {
-                    IconButton(onClick = { viewModel.shareLogs(context) }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share Logs")
-                    }
-                    IconButton(onClick = { viewModel.clearLogs() }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear Logs")
-                    }
+                    ToolIcon(Icons.Default.Share, "Share Logs", { viewModel.shareLogs(context) })
+                    ToolIcon(Icons.Default.Delete, "Clear Logs", { viewModel.clearLogs() })
                 }
             )
         },
@@ -90,46 +85,7 @@ fun LogViewerScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        "Log Export",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Share logs with the developer to help diagnose issues. Logs include API requests, errors, and app behavior.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.shareLogs(context) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-                    Text("Share Logs")
-                }
-                OutlinedButton(
-                    onClick = { viewModel.clearLogs() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
-                    Text("Clear Logs")
-                }
-            }
+            Text("Diagnoseprotokoll", style = MaterialTheme.typography.titleLarge)
 
             if (uiState.isLoading) {
                 Text("Loading logs...", style = MaterialTheme.typography.bodyMedium)

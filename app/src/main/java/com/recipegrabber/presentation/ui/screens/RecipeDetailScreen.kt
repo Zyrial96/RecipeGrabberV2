@@ -9,9 +9,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -32,6 +39,8 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,11 +57,18 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import com.recipegrabber.presentation.ui.components.RecipeArtwork
+import com.recipegrabber.presentation.ui.components.ToolIcon
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Step
@@ -80,40 +96,21 @@ fun RecipeDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(uiState.recipe?.recipe?.title ?: "Rezept") },
+                title = { Text("Rezept", style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
                 actions = {
                     uiState.recipe?.recipe?.let { recipe ->
-                        IconButton(onClick = { viewModel.shareRecipe(context) }) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = "Teilen",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                        IconButton(onClick = { viewModel.toggleFavorite() }) {
-                            Icon(
-                                if (recipe.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorit",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Löschen",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
+                        ToolIcon(Icons.Default.Share, "Teilen", { viewModel.shareRecipe(context) })
+                        ToolIcon(if (recipe.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            "Favorit", { viewModel.toggleFavorite() }, selected = recipe.isFavorite)
+                        ToolIcon(Icons.Default.Delete, "Löschen", { showDeleteDialog = true })
                     }
                 }
             )
@@ -126,9 +123,17 @@ fun RecipeDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    Text(recipe.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
+                if (com.recipegrabber.presentation.util.recipeArtworkUrl(recipe.thumbnailUrl, recipe.sourceUrl) != null) {
+                    item {
+                        RecipeArtwork(recipe.thumbnailUrl, Modifier.fillMaxWidth().height(176.dp).clip(RoundedCornerShape(8.dp)), sourceUrl = recipe.sourceUrl)
+                    }
+                }
                 item {
                     RecipeHeader(
                         servings = recipe.servings,
@@ -215,6 +220,7 @@ fun RecipeDetailScreen(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun RecipeHeader(
     servings: Int,
     scaledServings: Int,
@@ -223,23 +229,16 @@ fun RecipeHeader(
     onIncrement: () -> Unit,
     onDecrement: () -> Unit
 ) {
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.FoodBank,
                         contentDescription = null,
@@ -255,9 +254,8 @@ fun RecipeHeader(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FilledIconButton(
                         onClick = onDecrement,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     ) {
                         Icon(Icons.Default.Remove, contentDescription = "Weniger")
                     }
@@ -265,27 +263,27 @@ fun RecipeHeader(
                     Text(
                         text = "$scaledServings",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(horizontal = 16.dp).testTag("servings-value")
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(min = 64.dp).padding(horizontal = 8.dp).testTag("servings-value")
                     )
 
                     FilledIconButton(
                         onClick = onIncrement,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Mehr")
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.Schedule,
                         contentDescription = null,
@@ -296,7 +294,7 @@ fun RecipeHeader(
                     Text(
                         "Vorbereitung",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         "${prepTime} Min.",
@@ -306,7 +304,7 @@ fun RecipeHeader(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.Schedule,
                         contentDescription = null,
@@ -327,7 +325,7 @@ fun RecipeHeader(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.Schedule,
                         contentDescription = null,
@@ -348,7 +346,6 @@ fun RecipeHeader(
                     )
                 }
             }
-        }
     }
 }
 
@@ -357,17 +354,16 @@ fun IngredientItem(
     ingredient: Ingredient,
     scaledAmount: Double?
 ) {
+    var checked by rememberSaveable(ingredient.id) { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .heightIn(min = 48.dp)
+            .toggleable(checked, role = Role.Checkbox, onValueChange = { checked = it })
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "\u2022",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.width(16.dp)
-        )
+        Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(end = 12.dp).size(32.dp))
         Text(
             text = buildString {
                 if (scaledAmount != null && scaledAmount > 0) {
@@ -382,36 +378,35 @@ fun IngredientItem(
                     append(" (${ingredient.notes})")
                 }
             },
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+            color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
 @Composable
 fun StepItem(step: Step, stepNumber: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
+            Box(Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center) {
+                Text(
                 text = "$stepNumber",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.width(32.dp)
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
-            Column {
+            }
+            Column(Modifier.weight(1f)) {
                 Text(
                     text = step.instruction,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyLarge
                 )
                 step.duration?.let { duration ->
                     if (duration > 0) {
@@ -434,6 +429,5 @@ fun StepItem(step: Step, stepNumber: Int) {
                 }
             }
         }
-    }
 }
 

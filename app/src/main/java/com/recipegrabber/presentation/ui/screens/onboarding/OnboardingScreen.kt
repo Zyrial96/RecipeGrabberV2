@@ -1,6 +1,14 @@
 package com.recipegrabber.presentation.ui.screens.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -46,15 +54,13 @@ fun OnboardingScreen(
     val currentStep by viewModel.currentStep.collectAsState()
     val totalSteps = 3
     val progress = (currentStep + 1) / totalSteps.toFloat()
+    val animatedProgress by animateFloatAsState(progress, label = "setup-progress")
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Text("Recipe Grabber", style = MaterialTheme.typography.titleLarge)
                 }
             )
         }
@@ -66,29 +72,31 @@ fun OnboardingScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Willkommen bei Recipe Grabber",
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
+                text = "Einrichten",
+                style = MaterialTheme.typography.headlineSmall
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Schritt ${currentStep + 1} von $totalSteps",
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            LinearProgressIndicator(progress = { animatedProgress }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(24.dp))
 
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = {
-                    slideInHorizontally { width -> width } togetherWith
-                    slideOutHorizontally { width -> -width }
+                    val direction = if (targetState > initialState) 1 else -1
+                    (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 8 * direction }) togetherWith
+                        (fadeOut(tween(120)) + slideOutHorizontally(tween(180)) { -it / 8 * direction })
                 },
                 modifier = Modifier.weight(1f)
             ) { step ->
@@ -118,14 +126,17 @@ fun StepHeader(
     title: String,
     description: String
 ) {
-    Icon(
+    Box(Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.secondaryContainer),
+        contentAlignment = Alignment.Center) {
+        Icon(
         imageVector = icon,
         contentDescription = null,
-        modifier = Modifier.size(64.dp),
-        tint = MaterialTheme.colorScheme.primary
+        modifier = Modifier.size(36.dp),
+        tint = MaterialTheme.colorScheme.onSecondaryContainer
     )
+    }
 
-    Spacer(modifier = Modifier.height(24.dp))
+    Spacer(modifier = Modifier.height(16.dp))
 
     Text(
         text = title,
@@ -141,5 +152,5 @@ fun StepHeader(
         textAlign = TextAlign.Center
     )
 
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 }

@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Recipe Grabber V2</string>
+    <plurals name="recipe_count">
+        <item quantity="one">%d Rezept</item>
+        <item quantity="other">%d Rezepte</item>
+    </plurals>
+    <plurals name="ingredient_count">
+        <item quantity="one">%d Zutat</item>
+        <item quantity="other">%d Zutaten</item>
+    </plurals>
+    <plurals name="step_count">
+        <item quantity="one">%d Schritt</item>
+        <item quantity="other">%d Schritte</item>
+    </plurals>
 </resources>

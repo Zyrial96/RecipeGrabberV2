@@ -2,12 +2,16 @@ package com.recipegrabber.presentation.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +23,8 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.recipegrabber.data.local.entity.Recipe
 import com.recipegrabber.presentation.viewmodel.ExtractionStep
@@ -73,14 +81,6 @@ fun RecipeExtractionBottomSheet(
         onDispose { viewModel.reset() }
     }
 
-    LaunchedEffect(uiState.extractedRecipe) {
-        uiState.extractedRecipe?.let { recipe ->
-            if (recipe.id > 0) {
-                // Recipe saved successfully
-            }
-        }
-    }
-
     ModalBottomSheet(
         onDismissRequest = {
             viewModel.reset()
@@ -91,12 +91,14 @@ fun RecipeExtractionBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
         ) {
             // Header
             Text(
-                text = "Extracting Recipe",
+                text = "Video zu Rezept",
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -130,6 +132,8 @@ fun RecipeExtractionBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            ExtractionTimeline(uiState.step)
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Content based on state
             AnimatedContent(
@@ -170,12 +174,13 @@ fun RecipeExtractionBottomSheet(
 
 @Composable
 fun LoadingState(step: ExtractionStep, progressMessage: String = "", progressPercent: Float = 0f) {
+    val animatedProgress by animateFloatAsState(progressPercent.coerceIn(0f, 1f), label = "extraction-progress")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(40.dp),
             strokeWidth = 4.dp
         )
 
@@ -214,7 +219,7 @@ fun LoadingState(step: ExtractionStep, progressMessage: String = "", progressPer
 
         if (progressPercent > 0f) {
             LinearProgressIndicator(
-                progress = { progressPercent },
+                progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -232,6 +237,7 @@ fun LoadingState(step: ExtractionStep, progressMessage: String = "", progressPer
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun SuccessState(
     recipe: Recipe,
     onViewRecipe: () -> Unit,
@@ -244,15 +250,15 @@ fun SuccessState(
         Icon(
             imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
-            modifier = Modifier.size(80.dp),
+            modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Recipe Extracted!",
-            style = MaterialTheme.typography.headlineSmall
+            text = "Rezept gespeichert",
+            style = MaterialTheme.typography.titleLarge
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -296,12 +302,14 @@ fun SuccessState(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    RecipeStat("${recipe.ingredients.size}", "Ingredients")
-                    RecipeStat("${recipe.steps.size}", "Steps")
-                    RecipeStat("${recipe.servings}", "Servings")
+                    RecipeStat("${recipe.ingredients.size}", "Zutaten")
+                    RecipeStat("${recipe.steps.size}", "Schritte")
+                    RecipeStat("${recipe.servings}", "Portionen")
                 }
             }
         }
@@ -312,7 +320,7 @@ fun SuccessState(
             onClick = onViewRecipe,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("View Recipe")
+            Text("Rezept ansehen")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -321,7 +329,7 @@ fun SuccessState(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Close")
+            Text("Schlie\u00dfen")
         }
     }
 }
@@ -356,14 +364,14 @@ fun ErrorState(
         Icon(
             imageVector = Icons.Default.Error,
             contentDescription = null,
-            modifier = Modifier.size(80.dp),
+            modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.error
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Extraction Failed",
+            text = "Import fehlgeschlagen",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.error
         )
@@ -395,7 +403,7 @@ fun ErrorState(
             ) {
                 Icon(Icons.Default.Settings, contentDescription = null)
                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                Text("Open Settings")
+                Text("Einstellungen")
             }
         } else {
             Button(
@@ -404,7 +412,7 @@ fun ErrorState(
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                Text("Retry")
+                Text("Erneut versuchen")
             }
         }
 
@@ -414,7 +422,34 @@ fun ErrorState(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Cancel")
+            Text("Abbrechen")
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ExtractionTimeline(step: ExtractionStep) {
+    val active = when (step) {
+        ExtractionStep.IDLE, ExtractionStep.SCRAPING -> 0
+        ExtractionStep.EXTRACTING, ExtractionStep.ERROR -> 1
+        ExtractionStep.SUCCESS -> 2
+    }
+    val stages = listOf(Icons.Default.Movie to "Video", Icons.Default.AutoAwesome to "Analyse", Icons.Default.CheckCircle to "Gespeichert")
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        stages.forEachIndexed { index, (icon, label) ->
+            Row(modifier = Modifier.semantics {
+                stateDescription = when {
+                    index > active -> "Ausstehend"
+                    index == active && step == ExtractionStep.ERROR -> "Fehlgeschlagen"
+                    index < active || step == ExtractionStep.SUCCESS -> "Abgeschlossen"
+                    else -> "In Bearbeitung"
+                }
+            }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val color = if (index <= active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Icon(icon, null, Modifier.size(18.dp), tint = color)
+                Text(label, style = MaterialTheme.typography.labelMedium, color = color)
+            }
         }
     }
 }
