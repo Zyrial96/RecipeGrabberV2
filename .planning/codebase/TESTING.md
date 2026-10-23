@@ -5,6 +5,14 @@ analysis_date: 2026-10-13
 
 # Testing Patterns
 
+**23 October visual refresh (`52b0490`):** 154 JVM tests and ten release-tooling
+tests pass; lint/debug/test/minified-release assembly pass. Final Mi 11 suite:
+32 native passes/four external skips. New coverage checks compact/large-font
+layouts, card action separation, filters, checklist and switch behavior, success
+action reachability and artwork URL safety. Exact recipe aggregate preservation
+and actual light/dark screenshots are recorded in
+`../audits/2026-10-23-visual-refresh.md`.
+
 **23 October practical acceptance:** Mi 11 main/debug app completed real Android
 share-intent receipt, Gemini/OAuth extraction, persistence, four-recipe Drive
 backup, recovery of the temporarily removed new recipe, duplicate-free repeat,

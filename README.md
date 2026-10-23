@@ -71,6 +71,13 @@ On 13 October, a real Drive snapshot on the Mi 11 was uploaded, listed, download
 
 ## Code Map
 
+The [23 October visual refresh](.planning/audits/2026-10-23-visual-refresh.md)
+updates light/dark themes, image-backed recipe cards, favorite filtering, cooking
+checklists, setup/settings/extraction layouts and bounded transitions. It was
+installed and tested on the Mi 11 without changing its four recipe aggregates.
+The UI supports HTTPS artwork and validated public YouTube thumbnails with an
+offline/error fallback; this does not add video ingestion support to other providers.
+
 ```text
 app/src/main/java/com/recipegrabber/
   data/local/          Room entities, DAOs and database

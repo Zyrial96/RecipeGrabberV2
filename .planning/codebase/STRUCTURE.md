@@ -5,6 +5,13 @@ analysis_date: 2026-10-13
 
 # Codebase Structure
 
+**23 October visual refresh (`52b0490`):**
+`presentation/ui/components/RecipeVisuals.kt` contains shared Coil-backed recipe
+artwork, tooltip icon actions and metadata. `presentation/util/RecipeArtworkUrl.kt`
+selects validated HTTPS thumbnails/public YouTube previews and has JVM tests.
+`VisualRefreshTest.kt` covers the refreshed Compose controls and compact/large-font
+layouts. Persistence/provider ownership remains unchanged.
+
 **Analysis Date:** 2026-10-13
 **Last mapped commit:** `3dfcf75a166b1af026a710d6e54c8de6b1c9c126`
 
