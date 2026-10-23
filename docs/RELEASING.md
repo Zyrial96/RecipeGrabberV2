@@ -56,3 +56,18 @@ when they cannot pass the strict recipe-backup format.
 
 The subsequent actual production-package installation and Drive recovery on the
 S25 passed; see `.planning/audits/2026-10-18-production-release-recovery.md`.
+
+Version 2.1.0/code 2 reuses the same release identity and includes the visual
+refresh and original-video button. The exact production APK passed fresh
+four-recipe recovery, idempotent repeat, restart, scaling and UI/source-link
+checks on the Mi 11. See `.planning/audits/2026-10-23-mi11-release-2.1.0.md`.
+MIUI's fresh USB install restriction was handled through the normal Files/package
+installer with successful Play Protect and Xiaomi scans, without disabling
+protections.
+
+GitHub release publication is a separate explicit operation after build/device
+verification, not a side effect of `release.py`. Versioned notes and artifact
+checksums are tracked in `docs/releases/`; signed binaries are attached only to
+the GitHub release, never committed to source history. Do not attach keys,
+credential files, recipe backups or private screenshots. The AAB is an optional
+distribution artifact, not an automatic Play-store submission.

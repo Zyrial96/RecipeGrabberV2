@@ -18,6 +18,12 @@ Always compare an extracted recipe with its source. Structural validation cannot
 
 ## Build And Test
 
+The signed [2.1.0 release](https://github.com/Zyrial96/RecipeGrabberV2/releases/tag/v2.1.0)
+includes the new design and original-video button. Its exact production APK
+passed four-recipe backup/recovery and UI checks on the Mi 11; see the
+[release notes](docs/releases/2.1.0.md) and
+[device acceptance audit](.planning/audits/2026-10-23-mi11-release-2.1.0.md).
+
 Use JDK 17, Android SDK platform 35 and build-tools 34.0.0. Supported devices run Android 12 / API 31 or newer. Use the checked-in Gradle 8.7 wrapper, not system Gradle or a newer JDK.
 
 ```bash
