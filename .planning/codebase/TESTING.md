@@ -5,6 +5,13 @@ analysis_date: 2026-10-13
 
 # Testing Patterns
 
+**23 October practical acceptance:** Mi 11 main/debug app completed real Android
+share-intent receipt, Gemini/OAuth extraction, persistence, four-recipe Drive
+backup, recovery of the temporarily removed new recipe, duplicate-free repeat,
+restart and portion/detail readback. Original aggregates remained field-for-field
+unchanged. Fresh JVM run: 150 passes; native: 25 passes/4 external skips; release
+tooling: 10 passes. See `../audits/2026-10-23-mi11-practical-roundtrip.md`.
+
 **18 October release update (`f82c2e4`):** 150 JVM tests plus ten Python release-tooling tests pass locally with lint and signed/minified APK/AAB builds. Tooling rejects missing/private-config violations, signer/package mismatches, debuggable APKs and unsigned bundles. Actual S25 / API 36 recovery in releaseCheck began empty, inserted three Mi 11 recipes, inserted none on repeat and retained all three after restart/detail/portion checks. Installed artifact hash and non-debuggable package flags matched. Production-package APK installation is not inferred. Current hosted evidence belongs in `../audits/2026-10-18-signed-release-recovery.md`.
 
 **Subsequent production acceptance:** After verified private backups and explicit

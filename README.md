@@ -67,6 +67,8 @@ On 13 October, a real Drive snapshot on the Mi 11 was uploaded, listed, download
 
 **Actual production acceptance, 18 October:** After private database/APK backups and a fresh three-recipe Drive snapshot, the user-authorized replacement of the S25's original debug app with the exact signed `com.recipegrabber` release succeeded. Google authorization, three-recipe recovery, duplicate-free repeat, restart persistence, all ingredient/step details and portion scaling passed. The installed APK hash matched the verified production artifact; the audit/test apps remain intact. This was a fresh installation after backup, not an in-place cross-certificate update. See the [production recovery audit](.planning/audits/2026-10-18-production-release-recovery.md).
 
+**Complete practical workflow, 23 October:** On the Mi 11's existing debug app, a real YouTube `ACTION_SEND` link was extracted through the configured Gemini/OAuth path and saved. A fresh four-recipe Drive backup recovered the newly generated recipe after its temporary removal, preserved the three original recipes exactly, and inserted nothing on repeat. Restart, details and portion scaling passed. See the [share-to-recovery audit](.planning/audits/2026-10-23-mi11-practical-roundtrip.md) for data comparisons, artifact identities and limitations.
+
 ## Code Map
 
 ```text
