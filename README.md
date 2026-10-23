@@ -6,7 +6,7 @@ Native Kotlin Android app for turning cooking videos into structured recipes, st
 
 | Area | Implementation and limits |
 | --- | --- |
-| Local recipes | Room storage, search, favorites, sharing and portion scaling. Saved recipes are readable offline; extraction needs network access. |
+| Local recipes | Room storage, search, favorites, sharing and portion scaling. The detail view's **Originalvideo ansehen** button opens the saved HTTPS source in its installed app or browser, retaining timestamp parameters. Missing/unsafe sources do not offer a dead link. Saved recipes are readable offline; extraction and online video playback need network access. |
 | Gemini video input | Public YouTube URLs remain fileData. Direct HTTPS MP4/WebM/MOV files are downloaded with a 100 MiB cap; files up to 8 MiB use bounded inline video data, larger files use Files API transfer. Real YouTube, 7.5MB inline WebM and 21.2MB Files API WebM imports are verified with OAuth on the Mi 11, including persistence/restart. Larger files require the separately optional Google upload permission. These specific checks do not establish every format, origin or model. See the [media audit](.planning/audits/2026-10-13-files-api-verification.md). |
 | TikTok / Instagram | Optional Apify scrapers attempt to obtain direct media URLs. Platform pages are not video files. Scraper reliability and returned CDN URL compatibility are not verified end to end. |
 | Other AI adapters | OpenAI, Claude and Kimi adapters exist, but send URL text instead of actual video content. Their output is not verified video extraction. |

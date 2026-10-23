@@ -1,5 +1,8 @@
 package com.recipegrabber.presentation.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,11 +34,13 @@ import androidx.compose.material.icons.filled.FoodBank
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -52,6 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,6 +79,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.recipegrabber.data.local.entity.Ingredient
 import com.recipegrabber.data.local.entity.Step
 import com.recipegrabber.presentation.viewmodel.RecipeDetailViewModel
+import com.recipegrabber.presentation.util.originalVideoIntent
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +92,7 @@ fun RecipeDetailScreen(
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -132,6 +141,17 @@ fun RecipeDetailScreen(
                 if (com.recipegrabber.presentation.util.recipeArtworkUrl(recipe.thumbnailUrl, recipe.sourceUrl) != null) {
                     item {
                         RecipeArtwork(recipe.thumbnailUrl, Modifier.fillMaxWidth().height(176.dp).clip(RoundedCornerShape(8.dp)), sourceUrl = recipe.sourceUrl)
+                    }
+                }
+                item {
+                    OriginalVideoButton(recipe.sourceUrl) { intent ->
+                        try {
+                            context.startActivity(intent)
+                        } catch (_: ActivityNotFoundException) {
+                            scope.launch { snackbarHostState.showSnackbar("Keine App zum \u00d6ffnen des Videos verf\u00fcgbar.") }
+                        } catch (_: SecurityException) {
+                            scope.launch { snackbarHostState.showSnackbar("Das Originalvideo konnte nicht ge\u00f6ffnet werden.") }
+                        }
                     }
                 }
                 item {
@@ -216,6 +236,16 @@ fun RecipeDetailScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun OriginalVideoButton(sourceUrl: String, onOpen: (Intent) -> Unit) {
+    val intent = remember(sourceUrl) { originalVideoIntent(sourceUrl) } ?: return
+    FilledTonalButton(onClick = { onOpen(intent) }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.PlayCircleOutline, contentDescription = null, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Originalvideo ansehen", modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
     }
 }
 
